@@ -1,0 +1,25 @@
+[build-system]
+requires      = ["setuptools>=61.0.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "flow_sql"
+version = "0.1.0"
+description = "Easy way to write SQL queries"
+readme = "README.md"
+authors = [{ name = "Dmitrii Kononenko", email = "dmitriy.sergeevitch@gmail.com" }]
+license = { file = "LICENSE" }
+classifiers = [
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+]
+keywords = ["sql", "query builder", "PostgreSQL"]
+dependencies = ["psycopg2>=2.9.1"]
+requires-python = ">=3.7"
+
+    [project.optional-dependencies]
+    dev   = ["pytest"]
+
+    [project.urls]
+    repository    = "https://github.com/Dmitry-k42/flow-sql"

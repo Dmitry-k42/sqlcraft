@@ -2,9 +2,9 @@ from collections.abc import Sized, Mapping, Sequence, Iterable
 
 from psycopg2 import sql
 
-from constants import *
-from misc import alias, where_cond, where_cond_arr, where_cond_raw, with_subquery
-from base import BaseCommand
+from .constants import *
+from .misc import alias, where_cond, where_cond_arr, where_cond_raw, with_subquery
+from .base import BaseCommand
 
 
 class FromBehaviour:

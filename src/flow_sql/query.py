@@ -2,10 +2,11 @@ import functools
 from collections.abc import Sized, Mapping, Sequence, Iterable
 
 from psycopg2 import sql
-from constants import ORDER_ASC, ORDER_DESC, JOIN_FULL, JOIN_LEFT, JOIN_RIGHT, JOIN_INNER
-from misc import alias, join, order, const
-from base import BaseCommand
-from behaviours import FromBehaviour, WhereBehaviour, WithBehaviour
+
+from .constants import ORDER_ASC, ORDER_DESC, JOIN_FULL, JOIN_LEFT, JOIN_RIGHT, JOIN_INNER
+from .misc import alias, join, order, const
+from .base import BaseCommand
+from .behaviours import FromBehaviour, WhereBehaviour, WithBehaviour
 
 
 class Query(BaseCommand, WhereBehaviour, WithBehaviour, FromBehaviour):

@@ -1,6 +1,6 @@
 from psycopg2 import sql
 
-from base import BaseCommand
+from .base import BaseCommand
 
 
 class Command(BaseCommand):

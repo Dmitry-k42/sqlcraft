@@ -4,7 +4,7 @@ from collections.abc import Mapping, Iterable
 
 from psycopg2 import sql
 
-from misc import alias, expr
+from .misc import alias, expr
 
 
 class BaseCommand:

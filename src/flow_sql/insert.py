@@ -2,9 +2,9 @@ from collections.abc import Mapping, Sequence, Iterable
 
 from psycopg2 import sql
 
-from query import Query
-from base import BaseCommand
-from behaviours import WithBehaviour, ReturningBehaviour, TableBehaviour
+from .query import Query
+from .base import BaseCommand
+from .behaviours import WithBehaviour, ReturningBehaviour, TableBehaviour
 
 
 class Insert(BaseCommand, WithBehaviour, ReturningBehaviour, TableBehaviour):

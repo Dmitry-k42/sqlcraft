@@ -1,7 +1,7 @@
 from psycopg2 import sql
 
-from base import BaseCommand
-from behaviours import WhereBehaviour, WithBehaviour, FromBehaviour, ReturningBehaviour
+from .base import BaseCommand
+from .behaviours import WhereBehaviour, WithBehaviour, FromBehaviour, ReturningBehaviour
 
 
 class Delete(BaseCommand, WhereBehaviour, WithBehaviour, FromBehaviour, ReturningBehaviour):

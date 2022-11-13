@@ -1,5 +1,6 @@
 from collections import namedtuple
-from constants import ORDER_ASC
+
+from .constants import ORDER_ASC
 
 alias = namedtuple('alias', ['ident', 'alias'])
 expr = namedtuple('expr', ['value'])

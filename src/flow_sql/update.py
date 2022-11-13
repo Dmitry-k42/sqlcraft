@@ -1,7 +1,7 @@
 from psycopg2 import sql
 
-from base import BaseCommand
-from behaviours import WhereBehaviour, WithBehaviour, ReturningBehaviour, TableBehaviour
+from .base import BaseCommand
+from .behaviours import WhereBehaviour, WithBehaviour, ReturningBehaviour, TableBehaviour
 
 
 class Update(BaseCommand, WhereBehaviour, WithBehaviour, ReturningBehaviour, TableBehaviour):
