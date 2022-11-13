@@ -282,3 +282,6 @@ class Query(BaseCommand, WhereBehaviour, WithBehaviour, FromBehaviour):
 
     def _build_query_limit(self) -> sql.Composable:
         return sql.SQL('LIMIT {}').format(sql.Literal(self._limit)) if self._limit else None
+
+
+Select = Query
