@@ -1,3 +1,7 @@
+"""
+Constants to be used in query construction.
+"""
+
 ORDER_ASC = 'ASC'
 ORDER_DESC = 'DESC'
 

@@ -1,16 +1,34 @@
+"""
+The module provides different bevavious to be used in query builder classes:
+ * `FromBehaviour` - for FROM query block
+ * `WithBehaviour` - for WITH query block
+ * `TableBehaviour` - for specifying table name(s)
+ * `ReturningBehaviour` - for RETURNING query block
+ * `WhereBehaviour` - for WHERE query block
+"""
+
 from collections.abc import Sized, Mapping, Sequence, Iterable
 
 from psycopg2 import sql
 
-from .constants import *
+from .constants import WHERE_OP_AND, WHERE_OP_OR, WHERE_OP_IS_NULL, WHERE_OP_IS_NOT_NULL,\
+    WHERE_OP_NOT, WHERE_COMP_OPS, WHERE_OP_IN, WHERE_OP_EQUAL, WHERE_OP_LT, WHERE_OP_LTE,\
+    WHERE_OP_GT, WHERE_OP_GTE, WHERE_OP_NE, WHERE_OP_NE2, WHERE_OP_NOT_IN, WHERE_OP_LIKE,\
+    WHERE_OP_ILIKE, WHERE_OP_NOT_LIKE, WHERE_OP_NOT_ILIKE, WHERE_OP_OR_LIKE, WHERE_OP_OR_ILIKE,\
+    WHERE_OP_OR_NOT_LIKE, WHERE_OP_OR_NOT_ILIKE, WHERE_OP_BETWEEN, WHERE_OP_NOT_BETWEEN,\
+    WHERE_OP_EXISTS, WHERE_OP_NOT_EXISTS, WHERE_OPS
 from .misc import alias, where_cond, where_cond_arr, where_cond_raw, with_subquery
 from .base import BaseCommand
 
 
 class FromBehaviour:
-    def __init__(self, ob: BaseCommand):
+    """
+    Implements FROM query block.
+    """
+
+    def __init__(self, cmd: BaseCommand):
         self._from = []
-        self._o = ob
+        self._o = cmd
 
     def from_(self, table, alias=None):
         """
@@ -39,6 +57,7 @@ class FromBehaviour:
         return self.add_from(table, alias)
 
     def add_from(self, table, alias=None):
+        """Add a source to the FROM query block."""
         self._from.append(self._o._parse_column_or_table(table, alias))
         return self
 
@@ -50,9 +69,13 @@ class FromBehaviour:
 
 
 class WithBehaviour:
-    def __init__(self, ob: BaseCommand):
+    """
+    Implement WITH query block.
+    """
+
+    def __init__(self, cmd: BaseCommand):
         self._with = []
-        self._o = ob
+        self._o = cmd
 
     def with_(self, subquery, alias, recursive=False):
         """
@@ -104,8 +127,12 @@ class WithBehaviour:
 
 
 class TableBehaviour:
-    def __init__(self, ob: BaseCommand, table=None, alias=None):
-        self._o = ob
+    """
+    Implementation for table naming. It is used in builder classes for INSERT and UPDATE commands.
+    """
+
+    def __init__(self, cmd: BaseCommand, table=None, alias=None):
+        self._o = cmd
         self._table = None
         if table is not None:
             self.table(table, alias)
@@ -128,8 +155,12 @@ class TableBehaviour:
 
 
 class ReturningBehaviour:
-    def __init__(self, ob: BaseCommand):
-        self._o = ob
+    """
+    Implementation of the RETURING query block.
+    """
+
+    def __init__(self, cmd: BaseCommand):
+        self._o = cmd
         self._returning = []
 
     def returning(self, fields):
@@ -149,7 +180,8 @@ class ReturningBehaviour:
         * All fields:
             returning('*') => RETURNING *
         * Expressions: If the field contains "(" or ")" symbol then it will not be quoted
-            returning("concat(first_name, ' ', last_name)") => RETURNING concat(first_name, ' ', last_name)
+            returning("concat(first_name, ' ', last_name)")
+                => RETURNING concat(first_name, ' ', last_name)
         * AS-syntax:
             returning('c.name AS city_name') => RETURNING "c"."name" AS "city_name"
             returning('c.name city_name') => RETURNING "c"."name" AS "city_name"
@@ -192,9 +224,12 @@ class ReturningBehaviour:
 
 
 class WhereBehaviour:
-    def __init__(self, ob: BaseCommand):
+    """
+    Implementation of WHERE query block.
+    """
+    def __init__(self, cmd: BaseCommand):
         self._where = None
-        self._o = ob
+        self._o = cmd
 
     def where(self, cond):
         """
@@ -229,7 +264,10 @@ class WhereBehaviour:
             ])
                 => WHERE ("u"."fullname" IN ('Ivan', 'Richard')) AND ("u"."age" >= 18)
         * Conjuctions with `where_cond_arr`:
-            where(where_cond_arr(op=WHERE_OP_OR, conds=[('u.name', 'John Doe'), ('u.email', 'user@example.com')]
+            where(where_cond_arr(
+                    op=WHERE_OP_OR,
+                    conds=[('u.name', 'John Doe'), ('u.email', 'user@example.com')]
+            ))
                 => WHERE ("u"."name" = 'John Doe') OR ("u"."email" = 'user@example.com')
         * Subqueries are supported. For example:
             subq = Query(conn).select(1).from('users')
@@ -271,7 +309,8 @@ class WhereBehaviour:
                 self._where.conds.extend(cond_parsed.conds)
             else:
                 self._where.conds.append(cond_parsed)
-        elif isinstance(cond_parsed, where_cond_arr) and cond_parsed.op == cond_op and self._where is None:
+        elif (isinstance(cond_parsed, where_cond_arr)
+                and cond_parsed.op == cond_op and self._where is None):
             self._where = cond_parsed
         else:
             conds = []
@@ -289,46 +328,60 @@ class WhereBehaviour:
         if type(cond) in [bool, float, int]:
             return where_cond_raw(value=cond)
         if isinstance(cond, str):
-            known_suffixes = {
-                ' is null': (WHERE_OP_IS_NULL, None),
-                ' is not null': (WHERE_OP_IS_NOT_NULL, None),
-            }
-            for suffix, (op, value) in known_suffixes.items():
-                if cond.lower().endswith(suffix):
-                    return where_cond(op, cond[:-len(suffix)], value)
-            known_prefixes = {
-                'not ': (WHERE_OP_NOT, None),
-            }
-            for prefix, (op, value) in known_prefixes.items():
-                if cond.lower().startswith(prefix):
-                    return where_cond(op, cond[len(prefix):], value)
-            return where_cond_raw(value=cond)
-        elif not isinstance(cond, str) and isinstance(cond, Sized) and isinstance(cond, Sequence):
-            op = cond[0].lower()
-            if op in WHERE_COMP_OPS:
-                return where_cond_arr(op, [self._parse_where_cond(x) for x in cond[1:]])
-            if op in self._parse_where_map:
-                # noinspection PyArgumentList
-                return self._parse_where_map[op](self, cond)
-            if len(cond) == 2:
-                op2 = WHERE_OP_IN if isinstance(cond[1], Sequence) and not isinstance(cond[1], str) else WHERE_OP_EQUAL
-                return where_cond(op2, cond[0], cond[1])
+            return self._parse_where_str(cond)
+        if isinstance(cond, Sized) and isinstance(cond, Sequence):
+            res = self._parse_where_list(cond)
+            if res is not None:
+                return res
         elif isinstance(cond, Mapping):
-            conds = []
-            for ident, value in cond.items():
-                if isinstance(value, BaseCommand):
-                    op2 = WHERE_OP_EQUAL
-                elif isinstance(value, Sequence) and not isinstance(value, str):
-                    op2 = WHERE_OP_IN
-                elif value is None:
-                    op2 = WHERE_OP_IS_NULL
-                else:
-                    op2 = WHERE_OP_EQUAL
-                conds.append(where_cond(op2, ident, value))
-            return where_cond_arr(WHERE_OP_AND, conds)
+            return self._parse_where_mapping(cond)
         elif isinstance(cond, sql.Composable):
             return where_cond_raw(value=cond)
         raise Exception('Unknown format of the where condition')
+
+    def _parse_where_str(self, cond):
+        known_suffixes = {
+            ' is null': (WHERE_OP_IS_NULL, None),
+            ' is not null': (WHERE_OP_IS_NOT_NULL, None),
+        }
+        for suffix, (operation, value) in known_suffixes.items():
+            if cond.lower().endswith(suffix):
+                return where_cond(operation, cond[:-len(suffix)], value)
+        known_prefixes = {
+            'not ': (WHERE_OP_NOT, None),
+        }
+        for prefix, (operation, value) in known_prefixes.items():
+            if cond.lower().startswith(prefix):
+                return where_cond(operation, cond[len(prefix):], value)
+        return where_cond_raw(value=cond)
+
+    def _parse_where_list(self, cond):
+        operation = cond[0].lower()
+        if operation in WHERE_COMP_OPS:
+            return where_cond_arr(operation, [self._parse_where_cond(x) for x in cond[1:]])
+        if operation in self._parse_where_map:
+            # noinspection PyArgumentList
+            return self._parse_where_map[operation](self, cond)
+        if len(cond) == 2:
+            op2 = WHERE_OP_IN\
+                if isinstance(cond[1], Sequence) and not isinstance(cond[1], str)\
+                else WHERE_OP_EQUAL
+            return where_cond(op2, cond[0], cond[1])
+        return None
+
+    def _parse_where_mapping(self, cond):
+        conds = []
+        for ident, value in cond.items():
+            if isinstance(value, BaseCommand):
+                op2 = WHERE_OP_EQUAL
+            elif isinstance(value, Sequence) and not isinstance(value, str):
+                op2 = WHERE_OP_IN
+            elif value is None:
+                op2 = WHERE_OP_IS_NULL
+            else:
+                op2 = WHERE_OP_EQUAL
+            conds.append(where_cond(op2, ident, value))
+        return where_cond_arr(WHERE_OP_AND, conds)
 
     def _parse_where_0_param(self, cond):
         return where_cond(op=cond[0].lower(), ident=cond[1], value=None)
@@ -337,7 +390,8 @@ class WhereBehaviour:
         return where_cond(op=cond[0].lower(), ident=cond[1], value=cond[2])
 
     def _parse_where_between(self, cond):
-        return where_cond(op=cond[0].lower(), ident=cond[1], value=(cond[2], cond[3]) if len(cond) == 4 else cond[2])
+        return where_cond(op=cond[0].lower(), ident=cond[1],
+                          value=(cond[2], cond[3]) if len(cond) == 4 else cond[2])
 
     _parse_where_map = {
         WHERE_OP_EQUAL: _parse_where_1_param,
@@ -383,20 +437,22 @@ class WhereBehaviour:
                 return None
             glue = sql.SQL(' %s ' % cond.op.upper())
             return glue.join([sql.SQL('(') + x + sql.SQL(')') for x in conds])
-        elif isinstance(cond, where_cond):
-            method = self._build_query_where_map[cond.op] if cond.op in self._build_query_where_map else None
+        if isinstance(cond, where_cond):
+            method = self._build_query_where_map[cond.op]\
+                if cond.op in self._build_query_where_map\
+                else None
             if method is None:
                 raise Exception('Unknown where operator "%s"' % cond.op)
             # noinspection PyArgumentList
             return method(self, cond)
-        elif isinstance(cond, where_cond_raw):
+        if isinstance(cond, where_cond_raw):
             if isinstance(cond.value, str):
-                v = self._o._quote_string(cond.value)
+                res = self._o._quote_string(cond.value)
             elif isinstance(cond.value, sql.Composable):
-                v = cond.value
+                res = cond.value
             else:
-                v = sql.Literal(cond.value)
-            return v
+                res = sql.Literal(cond.value)
+            return res
         return None
 
     def _build_query_where_lgte(self, cond: where_cond):
@@ -423,8 +479,8 @@ class WhereBehaviour:
         else:
             if not isinstance(value, tuple):
                 value = tuple(value) if not isinstance(value, str) else tuple([value])
-            # In case of empty value in order to prevent syntax error we replace condition 'in ()' with 'false'
-            # That is behaviour which the users expects
+            # In case of empty value in order to prevent syntax error we replace condition
+            # 'in ()' with 'false'. That is behaviour which the users expects.
             if len(value) == 0:
                 return sql.SQL('false')
             placeholder = self._o._set_param(value)
@@ -437,35 +493,37 @@ class WhereBehaviour:
         values = cond.value
         if isinstance(values, str):
             values = [values]
-        comp_op = WHERE_OP_AND
-        op = cond.op
-        if op == WHERE_OP_OR_LIKE:
-            comp_op = WHERE_OP_OR
-            op = WHERE_OP_LIKE
-        elif op == WHERE_OP_OR_ILIKE:
-            comp_op = WHERE_OP_OR
-            op = WHERE_OP_ILIKE
-        elif op == WHERE_OP_OR_NOT_LIKE:
-            comp_op = WHERE_OP_OR
-            op = WHERE_OP_NOT_LIKE
-        elif op == WHERE_OP_OR_NOT_ILIKE:
-            comp_op = WHERE_OP_OR
-            op = WHERE_OP_NOT_ILIKE
-        comp_op = comp_op.upper()
-        op = op.upper()
+        comp_operation = WHERE_OP_AND
+        operation = cond.op
+        if operation == WHERE_OP_OR_LIKE:
+            comp_operation = WHERE_OP_OR
+            operation = WHERE_OP_LIKE
+        elif operation == WHERE_OP_OR_ILIKE:
+            comp_operation = WHERE_OP_OR
+            operation = WHERE_OP_ILIKE
+        elif operation == WHERE_OP_OR_NOT_LIKE:
+            comp_operation = WHERE_OP_OR
+            operation = WHERE_OP_NOT_LIKE
+        elif operation == WHERE_OP_OR_NOT_ILIKE:
+            comp_operation = WHERE_OP_OR
+            operation = WHERE_OP_NOT_ILIKE
+        comp_operation = comp_operation.upper()
+        operation = operation.upper()
         conds = []
         for value in values:
             escaping = sql.SQL('')
             if '%' in value:
                 value = value.replace('$', '$$').replace('%', '$%')
                 escaping = sql.SQL(" ESCAPE '$'")
-            conds.append(sql.SQL("{ident} {op} {value}{escaping}").format(
+            conds.append(sql.SQL("{ident} {operation} {value}{escaping}").format(
                 ident=self._o._quote_string(cond.ident),
-                op=sql.SQL(op.upper()),
+                operation=sql.SQL(operation.upper()),
                 value=self._o._set_param('%{}%'.format(value)),
                 escaping=escaping,
             ))
-        return sql.SQL('(') + sql.SQL(' %s ' % comp_op).join(conds) + sql.SQL(')') if len(conds) > 0 else None
+        return sql.SQL('(') + sql.SQL(' %s ' % comp_operation).join(conds) + sql.SQL(')')\
+            if len(conds) > 0\
+            else None
 
     def _build_query_where_not(self, cond: where_cond):
         return sql.SQL('%s ' % cond.op.upper()) + self._o._quote_string(cond.ident)

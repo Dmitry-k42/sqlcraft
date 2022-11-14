@@ -1,3 +1,7 @@
+"""
+`Copy` class provides calling COPY queries for faster inserts to the database.
+"""
+
 import json
 from collections.abc import Mapping, Iterable
 from io import StringIO
@@ -20,6 +24,7 @@ class Copy:
         self.null = null
 
     def execute(self):
+        """Execute the current query."""
         if not self.rows:
             return
         cursor = self._conn.cursor()
@@ -27,19 +32,19 @@ class Copy:
         for row in self.rows:
             text.append(self.sep.join(self._convert_value(v) for v in row))
         text = "\n".join(text)
-        f = StringIO(text)
-        bo = BaseCommand(self._conn)
+        fh_output = StringIO(text)
+        cmd = BaseCommand(self._conn)
         sql = "COPY {table}({columns}) FROM STDIN WITH DELIMITER '{sep}' NULL '{null}'".format(
-            table=bo.quoted(self.table),
-            columns=','.join(bo.quoted(c) for c in self.columns),
+            table=cmd.quoted(self.table),
+            columns=','.join(cmd.quoted(c) for c in self.columns),
             sep=self.sep,
             null=self.null,
         )
-        cursor.copy_expert(sql, f)
+        cursor.copy_expert(sql, fh_output)
 
-    def _convert_value(self, v):
-        if v is None:
+    def _convert_value(self, value):
+        if value is None:
             return self.null
-        if not isinstance(v, str) and isinstance(v, (Mapping, Iterable)):
-            return json.dumps(v)
-        return str(v).strip()
+        if not isinstance(value, str) and isinstance(value, (Mapping, Iterable)):
+            return json.dumps(value)
+        return str(value).strip()

@@ -6,4 +6,4 @@ from .delete import Delete
 from .update import Update
 from .insert import Insert
 from .command import Command
-from .copy_cmd import Copy
+from .copy_ import Copy

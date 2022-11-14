@@ -1,3 +1,7 @@
+"""
+Defines `BaseCommand`, the base type for every SQL builder class.
+"""
+
 import json
 import re
 from collections.abc import Mapping, Iterable
@@ -8,7 +12,12 @@ from .misc import alias, expr
 
 
 class BaseCommand:
+    """
+    The base class for all command builders.
+    """
+
     def __init__(self, conn):
+        """Create a new object."""
         self._conn = conn
         self._params = {}
         self._user_params = {}
@@ -19,7 +28,7 @@ class BaseCommand:
 
     def execute(self):
         """
-        Execute the query. Returns a new cursor which can be used to iterate the query result
+        Execute the query. Return a new cursor which can be used to iterate the query result
         Usage example:
         cursor = qb.execute()
         for row in cursor:
@@ -33,24 +42,27 @@ class BaseCommand:
 
     def all(self, eager=False, as_dict=False):
         """
-        Returns a generator (or list) for enumerating query result rows
+        Return a generator (or list) for enumerating query result rows
         :param eager - if True returns list of resulting rows, else generator will be returned
-        :param as_dict - set it True if you need to fetch rows as dict objects. If it's False then rows returns as DBRow
+        :param as_dict - set it True if you need to fetch rows as dict objects.
+            If it's False then rows returns as DBRow
         :return:
         """
         if eager:
             return list(self.all(eager=False, as_dict=as_dict))
-        else:
-            def inner_gen():
-                cursor = self.execute()
-                for row in cursor:
-                    yield dict(row.items()) if as_dict else row
-            return inner_gen()
+
+        def inner_gen():
+            cursor = self.execute()
+            for row in cursor:
+                yield dict(row.items()) if as_dict else row
+
+        return inner_gen()
 
     def one(self, as_dict=False):
         """
-        Returns a single row of the query result
-        :param as_dict - set it True if you need to fetch a dict object. If it's False then you will get a DBRow object
+        Return a single row of the query result
+        :param as_dict - set it True if you need to fetch a dict object.
+            If it's False then you will get a DBRow object
         :return:
         """
         cursor = self.execute()
@@ -59,7 +71,7 @@ class BaseCommand:
 
     def scalar(self):
         """
-        Returns a single scalar value returned after query execution
+        Return a single scalar value returned after query execution
         :return:
         """
         cursor = self.execute()
@@ -68,29 +80,30 @@ class BaseCommand:
 
     def column(self, eager=False):
         """
-        Returns a single column of the query result
+        Return a single column of the query result
         :param eager - if True returns a list of values else a generator will be returned
         :return:
         """
         if eager:
             return list(self.column(eager=False))
-        else:
-            def inner_gen():
-                cursor = self.execute()
-                for row in cursor:
-                    col = row[0]
-                    yield col
-            return inner_gen()
+
+        def inner_gen():
+            cursor = self.execute()
+            for row in cursor:
+                col = row[0]
+                yield col
+
+        return inner_gen()
 
     def as_string(self):
         """
-        Returns the query as raw sql statement
+        Return the query as raw sql statement
         :return: str
         """
         return self._build_query().as_string(self._conn)
 
     def _build_query(self, param_name_prefix=None):
-        self._params = {k: v for k, v in self._user_params.items()}
+        self._params = self._user_params.copy()
         self._params_next_idx = 0
         self._subqueries_built = 0
         self._param_name_prefix = param_name_prefix if param_name_prefix is not None else 'p'
@@ -106,6 +119,7 @@ class BaseCommand:
         return sql.Placeholder(param_name)
 
     def get_next_param_name(self, prefix='u'):
+        """Return a new parameter name to be used in the query"""
         i = 0
         while True:
             param_name = '{}{}'.format(prefix, i)
@@ -114,15 +128,18 @@ class BaseCommand:
             i += 1
 
     def add_param(self, param_name, value, json_stringify=False):
+        """Append a new parameter to the query"""
         self._user_params[param_name] = self._prepare_param_value(value, json_stringify)
         return self
 
     def add_params(self, params, json_stringify=False):
+        """Append many parameters to the current query"""
         for key, value in params.items():
             self.add_param(key, value, json_stringify)
         return self
 
     def params(self, params, json_stringify=False):
+        """Clear current query parameters and set a new ones instead of"""
         self._user_params = {}
         return self.add_params(params, json_stringify)
 
@@ -138,13 +155,13 @@ class BaseCommand:
         self._subqueries_built += 1
         return res
 
-    def quoted(self, s):
+    def quoted(self, string):
         """
         Quotes identifiers in the given string
-        :param s: string
+        :param string: string
         :return: string
         """
-        return self._quote_string(s).as_string(self._conn)
+        return self._quote_string(string).as_string(self._conn)
 
     def _quote_identifier(self, name: str) -> sql.Composable:
         if re.fullmatch(r'\d*', name):

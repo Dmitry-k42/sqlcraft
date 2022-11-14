@@ -1,3 +1,8 @@
+"""
+Define `Query` class for building SELECT queries. Also it includes `Select` class.
+`Select` is only a alias to `Query`.
+"""
+
 import functools
 from collections.abc import Sized, Mapping, Sequence, Iterable
 
@@ -26,6 +31,11 @@ class Query(BaseCommand, WhereBehaviour, WithBehaviour, FromBehaviour):
         self._limit = None
 
     def distinct(self, _distinct=True):
+        """
+        Set DISTINCT mode (see SQL specification for more info).
+        :param _distinct: a boolean. If True distinct mode will be on, otherwise off
+        :return: self
+        """
         self._distinct = _distinct
         return self
 
@@ -61,7 +71,11 @@ class Query(BaseCommand, WhereBehaviour, WithBehaviour, FromBehaviour):
                 => SELECT (SELECT count(*) FROM "cars" "c" WHERE "c"."user_id"="u"."id")
             subq = Query(conn).select('count(*)').from('cars c').where('c.user_id=u.id')
             select(alias(subq, alias='cars_count'))
-                => SELECT (SELECT count(*) FROM "cars" "c" WHERE "c"."user_id"="u"."id") AS "cars_count"
+                => SELECT (
+                    SELECT count(*)
+                    FROM "cars" "c"
+                    WHERE "c"."user_id"="u"."id"
+                ) AS "cars_count"
         :param fields: the fields to add
         :return: self
         """
@@ -90,13 +104,13 @@ class Query(BaseCommand, WhereBehaviour, WithBehaviour, FromBehaviour):
 
     def _join_table(self, join_type, table, on=None, alias=None, lateral=False):
         """
-        Adds a new JOIN query block. There are following methods available:
+        Add a new JOIN query block. There are following methods available:
         * `join_full` - for JOIN FULL
         * `join_left` - for JOIN LEFT
         * `join_right` - for JOIN RIGHT
         * `join_` - for JOIN
-        `table` & `alias` parameters works absolutely same as it was described in docs for `from_` method.
-        Please check it there to learn more about it.
+        `table` & `alias` parameters works absolutely same as it was described
+            in docs for `from_` method. Please check it there to learn more about it.
         Usage examples:
         * join_('auth.users u', 'e.user_id=u.id')
             => JOIN "auth"."users" AS "u" ON "e"."user_id"="u"."id"
@@ -108,7 +122,8 @@ class Query(BaseCommand, WhereBehaviour, WithBehaviour, FromBehaviour):
             subq = Query(conn).select('*').from('cars')
             join_(subq, alias=c, on='c.user_id=u.id')
                 => JOIN (SELECT * FROM "cars") AS "c" ON "c"."user_id"="u"."id"
-        :param join_type: available values JOIN_LEFT, JOIN_RIGHT, JOIN_INNER, JOIN_FULL
+        :param join_type: available values JOIN_LEFT, JOIN_RIGHT,
+            JOIN_INNER, JOIN_FULL
         :param table: joining table name
         :param on: joining table condition. Can be ommited
         :param alias: joining table alias. Can be ommited
@@ -188,14 +203,14 @@ class Query(BaseCommand, WhereBehaviour, WithBehaviour, FromBehaviour):
         :return: self
         """
         if isinstance(field, str):
-            f = field.split(',')
-            if len(f) > 1:
-                self.add_order(f)
+            field_items = field.split(',')
+            if len(field_items) > 1:
+                self.add_order(field_items)
             else:
-                f = [s for s in field.split(' ') if len(s) > 0]
-                if len(f) == 2 and f[1].upper() in [ORDER_ASC, ORDER_DESC]:
-                    ident = f[0]
-                    sort = f[1].upper()
+                field_words = [s for s in field.split(' ') if len(s) > 0]
+                if len(field_words) == 2 and field_words[1].upper() in [ORDER_ASC, ORDER_DESC]:
+                    ident = field_words[0]
+                    sort = field_words[1].upper()
                 else:
                     ident = field
                     sort = None
@@ -209,8 +224,8 @@ class Query(BaseCommand, WhereBehaviour, WithBehaviour, FromBehaviour):
                 and field[1] in (ORDER_ASC, ORDER_DESC)):
             self._order.append(order(field[0], field[1]))
         elif isinstance(field, Iterable):
-            for f in field:
-                self.add_order(f)
+            for field_el in field:
+                self.add_order(field_el)
         return self
 
     def limit(self, limit: int):
@@ -261,14 +276,14 @@ class Query(BaseCommand, WhereBehaviour, WithBehaviour, FromBehaviour):
         res = []
         for j in self._join:
             join_type, table, on, lateral = j
-            ji = sql.SQL('{join_type} JOIN{lateral} {table}').format(
+            joined_items = sql.SQL('{join_type} JOIN{lateral} {table}').format(
                 join_type=sql.SQL(join_type),
                 lateral=sql.SQL(' LATERAL' if lateral else ''),
                 table=self._quote_table(table),
             )
             if on:
-                ji += sql.SQL(' ON ') + self._build_query_where_iter(on)
-            res.append(ji)
+                joined_items += sql.SQL(' ON ') + self._build_query_where_iter(on)
+            res.append(joined_items)
         return sql.SQL(' ').join(res)
 
     def _build_query_group(self):

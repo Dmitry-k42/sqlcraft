@@ -1,3 +1,8 @@
+"""
+The module includes:
+ - class `Detele` - builder for the DELETE SQL statement
+"""
+
 from psycopg2 import sql
 
 from .base import BaseCommand
@@ -45,5 +50,6 @@ class Delete(BaseCommand, WhereBehaviour, WithBehaviour, FromBehaviour, Returnin
         if self._where in [None]:
             incorrect_where = True
         if incorrect_where:
-            raise Exception('Sorry empty WHERE block is restricted on DELETE operations for security reasons')
+            raise Exception(
+                'Sorry empty WHERE block is restricted on DELETE operations for security reasons')
         return super()._build_query_where()

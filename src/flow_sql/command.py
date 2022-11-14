@@ -1,3 +1,8 @@
+"""
+The module includes:
+ - class `Command` for custom (raw) SQL-queries
+"""
+
 from psycopg2 import sql
 
 from .base import BaseCommand
@@ -19,6 +24,7 @@ class Command(BaseCommand):
         self.sql(sql_)
 
     def sql(self, sql_):
+        """Return text representation of the SQL query."""
         self._sql = sql_
         return self
 

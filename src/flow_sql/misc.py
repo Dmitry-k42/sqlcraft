@@ -1,6 +1,11 @@
-from collections import namedtuple
+"""
+The module declares useful types here:
+ * `alias` - a type for SQL aliasing
+ * `expr` - a wrapper to make builder to prevent quotting a value
+ * `const` - a type is used for build queries with placeholders
+"""
 
-from .constants import ORDER_ASC
+from collections import namedtuple
 
 alias = namedtuple('alias', ['ident', 'alias'])
 expr = namedtuple('expr', ['value'])
@@ -10,11 +15,6 @@ with_subquery = namedtuple('with_subquery', ['subquery', 'recursive'])
 join = namedtuple('join', ['join_type', 'alias', 'on', 'lateral'])
 
 order = namedtuple('order', ['ident', 'sort'])
-
-
-def order_desc(ident, sort=ORDER_ASC):
-    return order(ident=ident, sort=sort)
-
 
 where_cond = namedtuple('where_cond', ['op', 'ident', 'value'])
 where_cond_arr = namedtuple('where_cond_arr', ['op', 'conds'])

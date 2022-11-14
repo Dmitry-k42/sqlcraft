@@ -1,3 +1,7 @@
+"""
+Implementation for UPDATE query.
+"""
+
 from psycopg2 import sql
 
 from .base import BaseCommand
@@ -66,7 +70,9 @@ class Update(BaseCommand, WhereBehaviour, WithBehaviour, ReturningBehaviour, Tab
                 'name': expr("concat(users.first_name, ' ', users.last_name)"),
                 'age': subquery,
             })
-                => SET "id"=12, "name"=concat(users.first_name, ' ', users.last_name), "age"=(SELECT 1)
+                => SET "id"=12,
+                    "name"=concat(users.first_name, ' ', users.last_name),
+                    "age"=(SELECT 1)
         :param fields: dictionary of the setting fields
         :return: self
         """

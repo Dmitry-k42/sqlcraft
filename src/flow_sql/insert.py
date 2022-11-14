@@ -1,3 +1,7 @@
+"""
+class `Insert` for building an INSERT command.
+"""
+
 from collections.abc import Mapping, Sequence, Iterable
 
 from psycopg2 import sql
@@ -88,7 +92,8 @@ class Insert(BaseCommand, WithBehaviour, ReturningBehaviour, TableBehaviour):
 
     def values(self, values):
         """
-        Sets the VALUES query block. It support several types of values: Query, dict, list, generator etc.
+        Sets the VALUES query block. It support several types of values:
+            Query, dict, list, generator etc.
         Please check out the examples in the class docs
         :param values: the values to insert
         :return: self
@@ -100,22 +105,23 @@ class Insert(BaseCommand, WithBehaviour, ReturningBehaviour, TableBehaviour):
             self.add_values(values)
         elif isinstance(values, Iterable):
             self._values = []
-            for vs in values:
-                self.add_values(vs)
+            for item in values:
+                self.add_values(item)
         else:
             raise Exception('Unsupported values type')
         return self
 
     def add_values(self, values):
         """
-        Adds a new values to the VALUES query block. It support several types of values: Query, dict, list, generator etc.
-        Please check out the examples in the class docs
+        Add a new values to the VALUES query block.
+        It support several types of values: Query, dict, list, generator etc.
+        Please check out the examples in the class docs.
         :param values: the values to insert
         :return: self
         """
         if isinstance(values, BaseCommand):
             raise Exception('Adding SELECT is not supported. Please call `values` method instead')
-        elif isinstance(values, Mapping):
+        if isinstance(values, Mapping):
             for field in values.keys():
                 if field not in self._columns:
                     self._columns.append(field)
@@ -151,13 +157,16 @@ class Insert(BaseCommand, WithBehaviour, ReturningBehaviour, TableBehaviour):
         When `action` is None, this method works as `on_conflict_do_nothing`.
         Example:
             on_conflict_do_update('id', {
-                'last_name': expr('excluded.last_name'), # This won't be escaped because of `expr` type
-                'first_name': '; drop database; --',  # This will be escaped, default behaviour
+                # This won't be escaped because of `expr` type
+                'last_name': expr('excluded.last_name'),
+                # This will be escaped, default behaviour
+                'first_name': '; drop database; --',
                 'id': 7,
                 'age': None,
             })
-                => ON CONFLICT ("id") DO UPDATE SET "last_name"="excluded"."last_name", "first_name"='; drop database; --',
-                        "id"=7, "age"=null
+                => ON CONFLICT ("id") DO UPDATE SET
+                    "last_name"="excluded"."last_name", "first_name"='; drop database; --',
+                    "id"=7, "age"=null
         :param constraint: defines the conflicting constraint
         :param action: dictionary for SET block
         :return: self
@@ -192,13 +201,13 @@ class Insert(BaseCommand, WithBehaviour, ReturningBehaviour, TableBehaviour):
     def _build_query_values(self):
         if isinstance(self._values, BaseCommand):
             return self._build_subquery(self._values)
-        elif isinstance(self._values, Iterable):
+        if isinstance(self._values, Iterable):
             res = []
-            for vs in self._values:
+            for item in self._values:
                 row = []
                 for column in self._columns:
-                    if column in vs:
-                        value = vs[column]
+                    if column in item:
+                        value = item[column]
                         if isinstance(value, Query):
                             row.append(sql.SQL('(') + self._build_subquery(value) + sql.SQL(')'))
                         else:
