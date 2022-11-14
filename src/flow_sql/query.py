@@ -115,7 +115,11 @@ class Query(BaseCommand, WhereBehaviour, WithBehaviour, FromBehaviour):
         :param lateral: flag for LATERAL keyword
         :return: self
         """
-        self._join.append(join(join_type, self._parse_column_or_table(table, alias), self._parse_where_cond(on), lateral))
+        self._join.append(join(
+            join_type,
+            self._parse_column_or_table(table, alias),
+            self._parse_where_cond(on), lateral
+        ))
         return self
 
     join_left = functools.partialmethod(_join_table, JOIN_LEFT)
@@ -200,8 +204,9 @@ class Query(BaseCommand, WhereBehaviour, WithBehaviour, FromBehaviour):
             self._order.append(field)
         elif isinstance(field, Mapping):
             self._order.append(order(field['field'], field.get('sort')))
-        elif isinstance(field, Sized) and isinstance(field, Sequence) and len(field) == 2\
-                and field[1] in (ORDER_ASC, ORDER_DESC):
+        elif (isinstance(field, Sized)
+                and isinstance(field, Sequence) and len(field) == 2
+                and field[1] in (ORDER_ASC, ORDER_DESC)):
             self._order.append(order(field[0], field[1]))
         elif isinstance(field, Iterable):
             for f in field:
@@ -277,7 +282,10 @@ class Query(BaseCommand, WhereBehaviour, WithBehaviour, FromBehaviour):
         if len(self._order) == 0:
             return None
         return sql.SQL('ORDER BY ') + (sql.SQL(', ').join([
-            sql.SQL('{}{}').format(self._quote_column(o.ident), sql.SQL(' ' + o.sort if o.sort else '')) for o in self._order
+            sql.SQL('{}{}').format(
+                self._quote_column(o.ident),
+                sql.SQL(' ' + o.sort if o.sort else ''),
+            ) for o in self._order
         ]))
 
     def _build_query_limit(self) -> sql.Composable:
