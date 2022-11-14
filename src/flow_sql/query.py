@@ -98,7 +98,7 @@ class Query(BaseCommand, WhereBehaviour, WithBehaviour, FromBehaviour):
             fields = [fields]
         for field in fields:
             if isinstance(field, str):
-                field = self._parse_column_or_table(field.strip())
+                field = self.parse_column_or_table(field.strip())
             self._select.append(field)
         return self
 
@@ -132,7 +132,7 @@ class Query(BaseCommand, WhereBehaviour, WithBehaviour, FromBehaviour):
         """
         self._join.append(join(
             join_type,
-            self._parse_column_or_table(table, alias),
+            self.parse_column_or_table(table, alias),
             self._parse_where_cond(on), lateral
         ))
         return self
@@ -239,8 +239,8 @@ class Query(BaseCommand, WhereBehaviour, WithBehaviour, FromBehaviour):
         self._limit = limit
         return self
 
-    def _build_query(self, param_name_prefix=None):
-        super()._build_query(param_name_prefix)
+    def build_query(self, param_name_prefix=None):
+        super().build_query(param_name_prefix)
         parts = [
             self._build_query_with(),
             self._build_query_select(),
@@ -264,7 +264,7 @@ class Query(BaseCommand, WhereBehaviour, WithBehaviour, FromBehaviour):
         def build_field(field):
             if isinstance(field, const):
                 return self._o._set_param(field.value)
-            return self._quote_column(field)
+            return self.quote_string(field)
 
         return prefix + sql.SQL(' ') + (sql.SQL(', ').join([
             build_field(field) for field in self._select
@@ -279,7 +279,7 @@ class Query(BaseCommand, WhereBehaviour, WithBehaviour, FromBehaviour):
             joined_items = sql.SQL('{join_type} JOIN{lateral} {table}').format(
                 join_type=sql.SQL(join_type),
                 lateral=sql.SQL(' LATERAL' if lateral else ''),
-                table=self._quote_table(table),
+                table=self.quote_string(table),
             )
             if on:
                 joined_items += sql.SQL(' ON ') + self._build_query_where_iter(on)
@@ -290,7 +290,7 @@ class Query(BaseCommand, WhereBehaviour, WithBehaviour, FromBehaviour):
         if len(self._group) == 0:
             return None
         return sql.SQL('GROUP BY ') + (sql.SQL(', ').join([
-            self._quote_column(field) for field in self._group
+            self.quote_string(field) for field in self._group
         ]))
 
     def _build_query_order(self):
@@ -298,7 +298,7 @@ class Query(BaseCommand, WhereBehaviour, WithBehaviour, FromBehaviour):
             return None
         return sql.SQL('ORDER BY ') + (sql.SQL(', ').join([
             sql.SQL('{}{}').format(
-                self._quote_column(o.ident),
+                self.quote_string(o.ident),
                 sql.SQL(' ' + o.sort if o.sort else ''),
             ) for o in self._order
         ]))

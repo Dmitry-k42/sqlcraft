@@ -176,8 +176,8 @@ class Insert(BaseCommand, WithBehaviour, ReturningBehaviour, TableBehaviour):
         self._conflict_action = action
         return self
 
-    def _build_query(self, param_name_prefix=None):
-        super()._build_query(param_name_prefix)
+    def build_query(self, param_name_prefix=None):
+        super().build_query(param_name_prefix)
         parts = [
             self._build_query_with(),
             self._build_query_insert_into(),
@@ -191,16 +191,16 @@ class Insert(BaseCommand, WithBehaviour, ReturningBehaviour, TableBehaviour):
     def _build_query_insert_into(self):
         if not self._table:
             return None
-        res = sql.SQL('INSERT INTO ') + self._quote_table(self._table)
+        res = sql.SQL('INSERT INTO ') + self.quote_string(self._table)
         if len(self._columns) > 0:
             res += sql.SQL('({})').format(sql.SQL(', ').join(
-                [self._quote_string(x) for x in self._columns]
+                [self.quote_string(x) for x in self._columns]
             ))
         return res
 
     def _build_query_values(self):
         if isinstance(self._values, BaseCommand):
-            return self._build_subquery(self._values)
+            return self.build_subquery(self._values)
         if isinstance(self._values, Iterable):
             res = []
             for item in self._values:
@@ -209,7 +209,7 @@ class Insert(BaseCommand, WithBehaviour, ReturningBehaviour, TableBehaviour):
                     if column in item:
                         value = item[column]
                         if isinstance(value, Query):
-                            row.append(sql.SQL('(') + self._build_subquery(value) + sql.SQL(')'))
+                            row.append(sql.SQL('(') + self.build_subquery(value) + sql.SQL(')'))
                         else:
                             row.append(self._set_param(value, json_stringify=True))
                     else:
@@ -225,12 +225,12 @@ class Insert(BaseCommand, WithBehaviour, ReturningBehaviour, TableBehaviour):
             return None
         res = sql.SQL('ON CONFLICT')
         if self._conflict_constraint:
-            res += sql.SQL(' ({})').format(self._quote_string(self._conflict_constraint))
+            res += sql.SQL(' ({})').format(self.quote_string(self._conflict_constraint))
         if self._conflict_action is not None:
             items = []
             for field, val in self._conflict_action.items():
                 items.append(sql.SQL('{field}={value}').format(
-                    field=self._quote_string(field),
+                    field=self.quote_string(field),
                     value=self._place_value(val),
                 ))
             res += sql.SQL(' DO UPDATE SET ') + (sql.SQL(', ').join(items))

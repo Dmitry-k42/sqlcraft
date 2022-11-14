@@ -33,8 +33,8 @@ class Delete(BaseCommand, WhereBehaviour, WithBehaviour, FromBehaviour, Returnin
         if where is not None:
             self.where(where)
 
-    def _build_query(self, param_name_prefix=None):
-        super()._build_query(param_name_prefix)
+    def build_query(self, param_name_prefix=None):
+        super().build_query(param_name_prefix)
         parts = [
             self._build_query_with(),
             sql.SQL('DELETE'),

@@ -31,8 +31,8 @@ class Command(BaseCommand):
     def as_string(self):
         return self._sql
 
-    def _build_query(self, param_name_prefix=None):
-        super()._build_query(param_name_prefix)
+    def build_query(self, param_name_prefix=None):
+        super().build_query(param_name_prefix)
         return sql.SQL(self._sql)
 
     def _set_param(self, value, json_stringify=False):

@@ -92,8 +92,8 @@ class Update(BaseCommand, WhereBehaviour, WithBehaviour, ReturningBehaviour, Tab
         self._fields[field] = value
         return self
 
-    def _build_query(self, param_name_prefix=None):
-        super()._build_query(param_name_prefix)
+    def build_query(self, param_name_prefix=None):
+        super().build_query(param_name_prefix)
         parts = [
             self._build_query_with(),
             self._build_query_update(),
@@ -116,14 +116,14 @@ class Update(BaseCommand, WhereBehaviour, WithBehaviour, ReturningBehaviour, Tab
     def _build_query_update(self):
         if not self._table:
             return None
-        res = sql.SQL('UPDATE ') + self._quote_table(self._table)
+        res = sql.SQL('UPDATE ') + self.quote_string(self._table)
         return res
 
     def _build_query_set(self):
         res = []
         for field, value in self._fields.items():
             res.append(sql.SQL('{field}={value}').format(
-                field=self._quote_string(field),
+                field=self.quote_string(field),
                 value=self._place_value(value),
             ))
         if len(res) == 0:

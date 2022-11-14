@@ -36,7 +36,7 @@ class BaseCommand:
         :return: cursor
         """
         cursor = self._conn.cursor()
-        query = self._build_query()
+        query = self.build_query()
         cursor.execute(query, self._params)
         return cursor
 
@@ -100,9 +100,17 @@ class BaseCommand:
         Return the query as raw sql statement
         :return: str
         """
-        return self._build_query().as_string(self._conn)
+        return self.build_query().as_string(self._conn)
 
-    def _build_query(self, param_name_prefix=None):
+    def build_query(self, param_name_prefix=None):
+        """
+        Build a query. Return an object to be used in `cursor.execute()` function.
+        You can call the function manually. Often you don't need to call this method.
+        Use methods `one`, `column`, `scalar` or `all`. These methods call `build_query`
+        under the hood and return data in convenient form. Call `build_query` method if you
+        know what you are doing.
+        :return: `sql.SQL` object
+        """
         self._params = self._user_params.copy()
         self._params_next_idx = 0
         self._subqueries_built = 0
@@ -119,7 +127,7 @@ class BaseCommand:
         return sql.Placeholder(param_name)
 
     def get_next_param_name(self, prefix='u'):
-        """Return a new parameter name to be used in the query"""
+        """Return a new parameter name to be used in the query."""
         i = 0
         while True:
             param_name = '{}{}'.format(prefix, i)
@@ -128,29 +136,36 @@ class BaseCommand:
             i += 1
 
     def add_param(self, param_name, value, json_stringify=False):
-        """Append a new parameter to the query"""
+        """Append a new parameter to the query."""
         self._user_params[param_name] = self._prepare_param_value(value, json_stringify)
         return self
 
     def add_params(self, params, json_stringify=False):
-        """Append many parameters to the current query"""
+        """Append many parameters to the current query."""
         for key, value in params.items():
             self.add_param(key, value, json_stringify)
         return self
 
     def params(self, params, json_stringify=False):
-        """Clear current query parameters and set a new ones instead of"""
+        """Clear current query parameters and set a new ones instead of."""
         self._user_params = {}
         return self.add_params(params, json_stringify)
+
+    def get_params(self):
+        """
+        Return the parameters to be passed to the query execution.
+        :return: dict
+        """
+        return self._user_params.copy()
 
     def _prepare_param_value(self, value, json_stringify=False):
         if json_stringify and not isinstance(value, str) and isinstance(value, (Mapping, Iterable)):
             value = self.json_dump_fn(value)
         return value
 
-    def _build_subquery(self, subquery):
-        res = subquery._build_query(param_name_prefix='p%d_' % self._subqueries_built)
-        for k, v in subquery._params.items():
+    def build_subquery(self, subquery):
+        res = subquery.build_query(param_name_prefix='p%d_' % self._subqueries_built)
+        for k, v in subquery.get_params.items():
             self._params[k] = v
         self._subqueries_built += 1
         return res
@@ -161,7 +176,7 @@ class BaseCommand:
         :param string: string
         :return: string
         """
-        return self._quote_string(string).as_string(self._conn)
+        return self.quote_string(string).as_string(self._conn)
 
     def _quote_identifier(self, name: str) -> sql.Composable:
         if re.fullmatch(r'\d*', name):
@@ -176,15 +191,20 @@ class BaseCommand:
     def _valid_identifier(cls, text: str) -> bool:
         return len(text) > 0 and re.fullmatch(r'\w*', text)
 
-    def _quote_string(self, val) -> sql.Composable:
+    def quote_string(self, val) -> sql.Composable:
+        """
+        Convert an identifier (table of field name) to `sql.Composable` type.
+        Do quoting if it is necessary. If `val` is a subquery, it will be rendered
+        with `build_subquery` method.
+        """
         if isinstance(val, sql.Composable):
             return val
         if isinstance(val, BaseCommand):
-            return sql.SQL('({})').format(self._build_subquery(val))
+            return sql.SQL('({})').format(self.build_subquery(val))
         if isinstance(val, alias):
-            quoted_ident = self._quote_string(val.ident)
+            quoted_ident = self.quote_string(val.ident)
             return quoted_ident if val.alias is None \
-                else sql.SQL('{} AS {}').format(quoted_ident, self._quote_string(val.alias))
+                else sql.SQL('{} AS {}').format(quoted_ident, self.quote_string(val.alias))
         if isinstance(val, expr):
             return sql.SQL(val.value)
         if not isinstance(val, str):
@@ -196,11 +216,15 @@ class BaseCommand:
             for substr in self._split_identifiers(val)
         ])
 
-    _quote_column = _quote_string
-    _quote_table = _quote_string
-
-    @staticmethod
-    def _parse_column_or_table(val, _alias=None):
+    @classmethod
+    def parse_column_or_table(cls, val, _alias=None):
+        """
+        Parse a string to detect a column or table name and its alias. Return an `alias` object.
+        Examples:
+            1) Invoke with val = 'field_name' returns alias(ident='field_name', alias=None)
+            1) Invoke with val = 'field_name AS age' returns alias(ident='field_name', alias='age')
+        :return: a new `alias` instance
+        """
         if isinstance(val, alias):
             return val
         if _alias is None and isinstance(val, str):
@@ -213,9 +237,9 @@ class BaseCommand:
         if isinstance(value, sql.SQL):
             val = value
         elif isinstance(value, expr):
-            val = self._quote_string(value.value)
+            val = self.quote_string(value.value)
         elif isinstance(value, BaseCommand):
-            val = self._quote_string(value)
+            val = self.quote_string(value)
         else:
             val = self._set_param(value)
         return val
