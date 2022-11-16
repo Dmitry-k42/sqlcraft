@@ -165,7 +165,7 @@ class BaseCommand:
 
     def build_subquery(self, subquery):
         res = subquery.build_query(param_name_prefix='p%d_' % self._subqueries_built)
-        for k, v in subquery.get_params.items():
+        for k, v in subquery.get_params().items():
             self._params[k] = v
         self._subqueries_built += 1
         return res
