@@ -459,6 +459,18 @@ class WhereBehaviour:
         value = cond.value
         if isinstance(value, BaseCommand):
             placeholder = sql.SQL('(') + self._o.build_subquery(value) + sql.SQL(')')
+        elif cond.op in ['=', '<>', '!='] and isinstance(value, Iterable) and not isinstance(value, str):
+            in_op = WHERE_OP_IN if cond.op == '=' else WHERE_OP_NOT_IN
+            return self._build_query_where_in(where_cond(in_op, cond.ident, cond.value))
+        elif cond.op in ['=', '<>', '!='] and isinstance(value, bool):
+            if cond.op != '=':
+                value = not value
+            return self._o.quote_string(cond.ident)\
+                if value\
+                else self._build_query_where_not(where_cond(WHERE_OP_NOT, cond.ident, None))
+        elif cond.op in ['=', '<>', '!='] and value is None:
+            is_null_op = WHERE_OP_IS_NULL if cond.op == '=' else WHERE_OP_IS_NOT_NULL
+            return self._build_query_where_is_null(where_cond(is_null_op, cond.ident, None))
         else:
             placeholder = self._o._set_param(value)
         return sql.SQL(' %s ' % cond.op).join([
@@ -511,14 +523,16 @@ class WhereBehaviour:
         operation = operation.upper()
         conds = []
         for value in values:
+            esc_char = '%'
             escaping = sql.SQL('')
             if '%' in value:
+                esc_char = '$'
                 value = value.replace('$', '$$').replace('%', '$%')
                 escaping = sql.SQL(" ESCAPE '$'")
             conds.append(sql.SQL("{ident} {operation} {value}{escaping}").format(
                 ident=self._o.quote_string(cond.ident),
                 operation=sql.SQL(operation.upper()),
-                value=self._o._set_param('%{}%'.format(value)),
+                value=self._o._set_param('{}{}{}'.format(esc_char, value, esc_char)),
                 escaping=escaping,
             ))
         return sql.SQL('(') + sql.SQL(' %s ' % comp_operation).join(conds) + sql.SQL(')')\
