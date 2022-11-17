@@ -1,0 +1,68 @@
+"""
+Constants to be used in query construction.
+"""
+
+ORDER_ASC = 'ASC'
+ORDER_DESC = 'DESC'
+
+JOIN_FULL = 'FULL'
+JOIN_LEFT = 'LEFT'
+JOIN_RIGHT = 'RIGHT'
+JOIN_INNER = ''
+
+WHERE_OP_AND = 'and'
+WHERE_OP_OR = 'or'
+WHERE_COMP_OPS = [
+    WHERE_OP_AND,
+    WHERE_OP_OR,
+]
+WHERE_OP_EQUAL = '='
+WHERE_OP_LT = '<'
+WHERE_OP_LTE = '<='
+WHERE_OP_GT = '>'
+WHERE_OP_GTE = '>='
+WHERE_OP_NE = '<>'
+WHERE_OP_NE2 = '!='
+WHERE_OP_IN = 'in'
+WHERE_OP_NOT_IN = 'not in'
+WHERE_OP_LIKE = 'like'
+WHERE_OP_ILIKE = 'ilike'
+WHERE_OP_NOT_LIKE = 'not like'
+WHERE_OP_NOT_ILIKE = 'not ilike'
+WHERE_OP_OR_LIKE = 'or like'
+WHERE_OP_OR_ILIKE = 'or ilike'
+WHERE_OP_OR_NOT_LIKE = 'or not like'
+WHERE_OP_OR_NOT_ILIKE = 'or not ilike'
+WHERE_OP_NOT = 'not'
+WHERE_OP_BETWEEN = 'between'
+WHERE_OP_NOT_BETWEEN = 'not between'
+WHERE_OP_EXISTS = 'exists'
+WHERE_OP_NOT_EXISTS = 'not exists'
+WHERE_OP_IS_NULL = 'is null'
+WHERE_OP_IS_NOT_NULL = 'is not null'
+WHERE_OPS = [
+    WHERE_OP_EQUAL,
+    WHERE_OP_LT,
+    WHERE_OP_LTE,
+    WHERE_OP_GT,
+    WHERE_OP_GTE,
+    WHERE_OP_NE,
+    WHERE_OP_NE2,
+    WHERE_OP_IN,
+    WHERE_OP_NOT_IN,
+    WHERE_OP_LIKE,
+    WHERE_OP_ILIKE,
+    WHERE_OP_NOT_LIKE,
+    WHERE_OP_NOT_ILIKE,
+    WHERE_OP_OR_LIKE,
+    WHERE_OP_OR_ILIKE,
+    WHERE_OP_OR_NOT_LIKE,
+    WHERE_OP_OR_NOT_ILIKE,
+    WHERE_OP_NOT,
+    WHERE_OP_BETWEEN,
+    WHERE_OP_NOT_BETWEEN,
+    WHERE_OP_EXISTS,
+    WHERE_OP_NOT_EXISTS,
+    WHERE_OP_IS_NULL,
+    WHERE_OP_IS_NOT_NULL,
+]
