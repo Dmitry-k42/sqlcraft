@@ -33,23 +33,22 @@ class Delete(BaseCommand, WhereBehaviour, WithBehaviour, FromBehaviour, Returnin
         if where is not None:
             self.where(where)
 
-    def build_query(self, param_name_prefix=None):
-        super().build_query(param_name_prefix)
+    def _on_build_query(self, ctx):
         parts = [
-            self._build_query_with(),
+            self._build_query_with(ctx),
             sql.SQL('DELETE'),
-            self._build_query_from(),
-            self._build_query_where(),
-            self._build_query_returning(),
+            self._build_query_from(ctx),
+            self._build_query_where(ctx),
+            self._build_query_returning(ctx),
         ]
         res = sql.SQL(' ').join([p for p in parts if p is not None])
         return res
 
-    def _build_query_where(self):
+    def _build_query_where(self, ctx):
         incorrect_where = False
         if self._where in [None]:
             incorrect_where = True
         if incorrect_where:
             raise Exception(
                 'Sorry empty WHERE block is restricted on DELETE operations for security reasons')
-        return super()._build_query_where()
+        return super()._build_query_where(ctx)

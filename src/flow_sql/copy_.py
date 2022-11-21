@@ -6,7 +6,7 @@ import json
 from collections.abc import Mapping, Iterable
 from io import StringIO
 
-from .base import BaseCommand
+from .base import BaseCommand, BuildContext
 
 
 class Copy:
@@ -34,9 +34,10 @@ class Copy:
         text = "\n".join(text)
         fh_output = StringIO(text)
         cmd = BaseCommand(self._conn)
+        ctx = BuildContext({}, {}, cmd.json_dump_fn)
         sql = "COPY {table}({columns}) FROM STDIN WITH DELIMITER '{sep}' NULL '{null}'".format(
-            table=cmd.quoted(self.table),
-            columns=','.join(cmd.quoted(c) for c in self.columns),
+            table=cmd.quote_string(self.table, ctx).as_string(self._conn),
+            columns=','.join(cmd.quote_string(c, ctx).as_string(self._conn) for c in self.columns),
             sep=self.sep,
             null=self.null,
         )

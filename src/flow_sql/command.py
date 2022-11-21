@@ -31,9 +31,5 @@ class Command(BaseCommand):
     def as_string(self):
         return self._sql
 
-    def build_query(self, param_name_prefix=None):
-        super().build_query(param_name_prefix)
+    def _on_build_query(self, ctx):
         return sql.SQL(self._sql)
-
-    def _set_param(self, value, json_stringify=False):
-        raise Exception('Unimplemented here. Use `add_param` instead')

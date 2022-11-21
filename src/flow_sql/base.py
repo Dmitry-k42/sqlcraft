@@ -11,20 +11,43 @@ from psycopg2 import sql
 from .misc import alias, expr
 
 
-class BaseCommand:
+def _prepare_param_value(value, json_stringify, json_dump_fn):
+    if json_stringify and not isinstance(value, str) and isinstance(value, (Mapping, Iterable)):
+        value = json_dump_fn(value)
+    return value
+
+
+class BuildContext:
     """
-    The base class for all command builders.
+    Class for containing all the context during building queries.
     """
 
-    def __init__(self, conn):
-        """Create a new object."""
-        self._conn = conn
-        self._params = {}
-        self._user_params = {}
-        self._param_name_prefix = None
-        self._subqueries_built = 0
+    def __init__(self, user_params, param_name_prefix, json_dump_fn):
+        self.params = user_params.copy()
+        self.param_name_prefix = param_name_prefix if param_name_prefix is not None else 'p'
+        self.subqueries_built = 0
         self._params_next_idx = 0
-        self.json_dump_fn = json.dumps
+        self.json_dump_fn = json_dump_fn
+
+    def set_param(self, value, json_stringify=False):
+        while True:
+            param_name = '{}{}'.format(self.param_name_prefix, self._params_next_idx)
+            if param_name not in self.params:
+                break
+            self._params_next_idx += 1
+        self.params[param_name] = _prepare_param_value(value, json_stringify, self.json_dump_fn)
+        return sql.Placeholder(param_name)
+
+
+class BuiltCommand:
+    """
+    Built command created after `BaseCommand.build_query` method invoke.
+    """
+
+    def __init__(self, conn, query, params):
+        self.query = query
+        self.params = params
+        self.conn = conn
 
     def execute(self):
         """
@@ -35,9 +58,8 @@ class BaseCommand:
             ... do what you want
         :return: cursor
         """
-        cursor = self._conn.cursor()
-        query = self.build_query()
-        cursor.execute(query, self._params)
+        cursor = self.conn.cursor()
+        cursor.execute(self.query, self.params)
         return cursor
 
     def all(self, eager=False, as_dict=False):
@@ -100,7 +122,71 @@ class BaseCommand:
         Return the query as raw sql statement
         :return: str
         """
-        return self.build_query().as_string(self._conn)
+        return self.query.as_string(self.conn)
+
+
+class BaseCommand:
+    """
+    The base class for all command builders.
+    """
+
+    def __init__(self, conn):
+        """Create a new object."""
+        self.conn = conn
+        self._user_params = {}
+        self.json_dump_fn = json.dumps
+
+    def execute(self):
+        """
+        Execute the query. Return a new cursor which can be used to iterate the query result
+        Usage example:
+        cursor = qb.execute()
+        for row in cursor:
+            ... do what you want
+        :return: cursor
+        """
+        return self.build_query().execute()
+
+    def all(self, eager=False, as_dict=False):
+        """
+        Return a generator (or list) for enumerating query result rows
+        :param eager - if True returns list of resulting rows, else generator will be returned
+        :param as_dict - set it True if you need to fetch rows as dict objects.
+            If it's False then rows returns as DBRow
+        :return:
+        """
+        return self.build_query().all(eager=eager, as_dict=as_dict)
+
+    def one(self, as_dict=False):
+        """
+        Return a single row of the query result
+        :param as_dict - set it True if you need to fetch a dict object.
+            If it's False then you will get a DBRow object
+        :return:
+        """
+        return self.build_query().one(as_dict=as_dict)
+
+    def scalar(self):
+        """
+        Return a single scalar value returned after query execution
+        :return:
+        """
+        return self.build_query().scalar()
+
+    def column(self, eager=False):
+        """
+        Return a single column of the query result
+        :param eager - if True returns a list of values else a generator will be returned
+        :return:
+        """
+        return self.build_query().column(eager=eager)
+
+    def as_string(self):
+        """
+        Return the query as raw sql statement
+        :return: str
+        """
+        return self.build_query().as_string()
 
     def build_query(self, param_name_prefix=None):
         """
@@ -109,35 +195,21 @@ class BaseCommand:
         Use methods `one`, `column`, `scalar` or `all`. These methods call `build_query`
         under the hood and return data in convenient form. Call `build_query` method if you
         know what you are doing.
-        :return: `sql.SQL` object
+        :return: BuiltCommand
         """
-        self._params = self._user_params.copy()
-        self._params_next_idx = 0
-        self._subqueries_built = 0
-        self._param_name_prefix = param_name_prefix if param_name_prefix is not None else 'p'
+        ctx = BuildContext(self._user_params, param_name_prefix, self.json_dump_fn)
+        return BuiltCommand(
+            conn=self.conn,
+            query = self._on_build_query(ctx),
+            params=ctx.params,
+        )
+
+    def _on_build_query(self, ctx):
         return sql.SQL('')
-
-    def _set_param(self, value, json_stringify=False):
-        while True:
-            param_name = '{}{}'.format(self._param_name_prefix, self._params_next_idx)
-            if param_name not in self._params:
-                break
-            self._params_next_idx += 1
-        self._params[param_name] = self._prepare_param_value(value, json_stringify)
-        return sql.Placeholder(param_name)
-
-    def get_next_param_name(self, prefix='u'):
-        """Return a new parameter name to be used in the query."""
-        i = 0
-        while True:
-            param_name = '{}{}'.format(prefix, i)
-            if param_name not in self._user_params:
-                return param_name
-            i += 1
 
     def add_param(self, param_name, value, json_stringify=False):
         """Append a new parameter to the query."""
-        self._user_params[param_name] = self._prepare_param_value(value, json_stringify)
+        self._user_params[param_name] = _prepare_param_value(value, json_stringify, self.json_dump_fn)
         return self
 
     def add_params(self, params, json_stringify=False):
@@ -158,25 +230,12 @@ class BaseCommand:
         """
         return self._user_params.copy()
 
-    def _prepare_param_value(self, value, json_stringify=False):
-        if json_stringify and not isinstance(value, str) and isinstance(value, (Mapping, Iterable)):
-            value = self.json_dump_fn(value)
-        return value
-
-    def build_subquery(self, subquery):
-        res = subquery.build_query(param_name_prefix='p%d_' % self._subqueries_built)
+    def build_subquery(self, subquery, ctx):
+        res = subquery.build_query(param_name_prefix='p{}_'.format(ctx.subqueries_built))
         for k, v in subquery.get_params().items():
-            self._params[k] = v
-        self._subqueries_built += 1
+            ctx.params[k] = v
+        ctx.subqueries_built += 1
         return res
-
-    def quoted(self, string):
-        """
-        Quotes identifiers in the given string
-        :param string: string
-        :return: string
-        """
-        return self.quote_string(string).as_string(self._conn)
 
     def _quote_identifier(self, name: str) -> sql.Composable:
         if re.fullmatch(r'\d*', name):
@@ -191,7 +250,7 @@ class BaseCommand:
     def _valid_identifier(cls, text: str) -> bool:
         return len(text) > 0 and re.fullmatch(r'\w*', text)
 
-    def quote_string(self, val) -> sql.Composable:
+    def quote_string(self, val, ctx) -> sql.Composable:
         """
         Convert an identifier (table of field name) to `sql.Composable` type.
         Do quoting if it is necessary. If `val` is a subquery, it will be rendered
@@ -200,11 +259,12 @@ class BaseCommand:
         if isinstance(val, sql.Composable):
             return val
         if isinstance(val, BaseCommand):
-            return sql.SQL('({})').format(self.build_subquery(val))
+            built_cmd = self.build_subquery(val, ctx)
+            return sql.SQL('({})'.format(built_cmd.as_string()))
         if isinstance(val, alias):
-            quoted_ident = self.quote_string(val.ident)
+            quoted_ident = self.quote_string(val.ident, ctx)
             return quoted_ident if val.alias is None \
-                else sql.SQL('{} AS {}').format(quoted_ident, self.quote_string(val.alias))
+                else sql.SQL('{} AS {}').format(quoted_ident, self.quote_string(val.alias, ctx))
         if isinstance(val, expr):
             return sql.SQL(val.value)
         if not isinstance(val, str):
@@ -233,13 +293,13 @@ class BaseCommand:
                 return alias(ident=match.group(1), alias=match.group(3))
         return alias(val, _alias)
 
-    def _place_value(self, value):
+    def _place_value(self, value, ctx):
         if isinstance(value, sql.SQL):
             val = value
         elif isinstance(value, expr):
-            val = self.quote_string(value.value)
+            val = self.quote_string(value.value, ctx)
         elif isinstance(value, BaseCommand):
-            val = self.quote_string(value)
+            val = self.quote_string(value, ctx)
         else:
-            val = self._set_param(value)
+            val = ctx.set_param(value)
         return val
