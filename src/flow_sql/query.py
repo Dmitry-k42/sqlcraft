@@ -249,7 +249,7 @@ class Query(BaseCommand, WhereBehaviour, WithBehaviour, FromBehaviour):
             self._build_query_where(ctx),
             self._build_query_group(ctx),
             self._build_query_order(ctx),
-            self._build_query_limit(ctx),
+            self._build_query_limit(),
         ]
         res = sql.SQL(' ').join([p for p in parts if p is not None])
         return res
@@ -303,7 +303,7 @@ class Query(BaseCommand, WhereBehaviour, WithBehaviour, FromBehaviour):
             ) for o in self._order
         ]))
 
-    def _build_query_limit(self, ctx):
+    def _build_query_limit(self):
         return sql.SQL('LIMIT {}').format(sql.Literal(self._limit)) if self._limit else None
 
 

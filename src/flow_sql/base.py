@@ -30,6 +30,7 @@ class BuildContext:
         self.json_dump_fn = json_dump_fn
 
     def set_param(self, value, json_stringify=False):
+        """Set a new (or update) query parameter."""
         while True:
             param_name = '{}{}'.format(self.param_name_prefix, self._params_next_idx)
             if param_name not in self.params:
@@ -204,12 +205,17 @@ class BaseCommand:
             params=ctx.params,
         )
 
+    # Argument `ctx` is unused here, but it is useful in derived classes.
+    # Given that I want to preserve its name here. That's why I suppress
+    # linter warning
+    # pylint: disable=W0613
     def _on_build_query(self, ctx):
         return sql.SQL('')
 
     def add_param(self, param_name, value, json_stringify=False):
         """Append a new parameter to the query."""
-        self._user_params[param_name] = _prepare_param_value(value, json_stringify, self.json_dump_fn)
+        self._user_params[param_name] = _prepare_param_value(
+            value, json_stringify, self.json_dump_fn)
         return self
 
     def add_params(self, params, json_stringify=False):
@@ -231,6 +237,7 @@ class BaseCommand:
         return self._user_params.copy()
 
     def build_subquery(self, subquery, ctx):
+        """Build a subquery regard to the current build context."""
         res = subquery.build_query(param_name_prefix='p{}_'.format(ctx.subqueries_built))
         for k, v in subquery.get_params().items():
             ctx.params[k] = v
