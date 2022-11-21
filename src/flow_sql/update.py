@@ -92,39 +92,38 @@ class Update(BaseCommand, WhereBehaviour, WithBehaviour, ReturningBehaviour, Tab
         self._fields[field] = value
         return self
 
-    def build_query(self, param_name_prefix=None):
-        super().build_query(param_name_prefix)
+    def _on_build_query(self, ctx):
         parts = [
-            self._build_query_with(),
-            self._build_query_update(),
-            self._build_query_set(),
-            self._build_query_where(),
-            self._build_query_returning(),
+            self._build_query_with(ctx),
+            self._build_query_update(ctx),
+            self._build_query_set(ctx),
+            self._build_query_where(ctx),
+            self._build_query_returning(ctx),
         ]
         res = sql.SQL(' ').join([p for p in parts if p is not None])
         return res
 
-    def _build_query_where(self):
+    def _build_query_where(self, ctx):
         incorrect_where = False
         if self._where in [None]:
             incorrect_where = True
         if incorrect_where:
             raise Exception('Sorry empty WHERE block is restricted on UPDATE operations. '
                             'Please call where(True) if you have to update all rows in the table')
-        return super()._build_query_where()
+        return super()._build_query_where(ctx)
 
-    def _build_query_update(self):
+    def _build_query_update(self, ctx):
         if not self._table:
             return None
-        res = sql.SQL('UPDATE ') + self.quote_string(self._table)
+        res = sql.SQL('UPDATE ') + self.quote_string(self._table, ctx)
         return res
 
-    def _build_query_set(self):
+    def _build_query_set(self, ctx):
         res = []
         for field, value in self._fields.items():
             res.append(sql.SQL('{field}={value}').format(
-                field=self.quote_string(field),
-                value=self._place_value(value),
+                field=self.quote_string(field, ctx),
+                value=self._place_value(value, ctx),
             ))
         if len(res) == 0:
             return None

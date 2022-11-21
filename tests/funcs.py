@@ -2,9 +2,11 @@ import itertools
 
 
 def assert_query(cmd, expected_query, expected_params):
-    actual_query = cmd.as_string()
+    built_cmd = cmd.build_query()
+    actual_query = built_cmd.as_string()
+    actual_params = built_cmd.params
     assert actual_query == expected_query, '"{}" != "{}"'.format(actual_query, expected_query)
-    assert cmd._params == expected_params, '"{}" != "{}"'.format(cmd._params, expected_params)
+    assert actual_params == expected_params, '"{}" != "{}"'.format(actual_params, expected_params)
 
 
 def create_table(conn, tablename, columns):

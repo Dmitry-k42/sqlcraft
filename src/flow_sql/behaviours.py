@@ -61,10 +61,11 @@ class FromBehaviour:
         self._from.append(self._o.parse_column_or_table(table, alias))
         return self
 
-    def _build_query_from(self):
+    def _build_query_from(self, ctx):
         if not self._from:
             return None
-        res = sql.SQL('FROM ') + sql.SQL(', ').join(self._o.quote_string(x) for x in self._from)
+        res = sql.SQL('FROM ')\
+              + sql.SQL(', ').join(self._o.quote_string(x, ctx) for x in self._from)
         return res
 
 
@@ -108,19 +109,19 @@ class WithBehaviour:
         self._with.append(with_subquery(alias(ident=subquery, alias=alias_), recursive))
         return self
 
-    def _build_query_with(self):
+    def _build_query_with(self, ctx):
         if len(self._with) == 0:
             return None
         subqueries = []
         for sub in self._with:
             ident = sub.subquery.ident
             if isinstance(ident, BaseCommand):
-                query = self._o.build_subquery(ident)
+                query = self._o.build_subquery(ident, ctx).query
             else:
                 query = sql.SQL(ident)
             subqueries.append(sql.SQL('{recursive}{alias} AS ({query})').format(
                 recursive=sql.SQL('RECURSIVE ' if sub.recursive else ''),
-                alias=self._o.quote_string(sub.subquery.alias),
+                alias=self._o.quote_string(sub.subquery.alias, ctx),
                 query=query,
             ))
         return sql.SQL('WITH ') + (sql.SQL(', ').join(subqueries))
@@ -215,11 +216,11 @@ class ReturningBehaviour:
             self._returning.append(field)
         return self
 
-    def _build_query_returning(self):
+    def _build_query_returning(self, ctx):
         if len(self._returning) == 0:
             return None
         return sql.SQL('RETURNING ') + (sql.SQL(', ').join([
-            self._o.quote_string(field) for field in self._returning
+            self._o.quote_string(field, ctx) for field in self._returning
         ]))
 
 
@@ -421,17 +422,17 @@ class WhereBehaviour:
     }
     assert sorted(_parse_where_map.keys()) == sorted(WHERE_OPS)
 
-    def _build_query_where(self):
+    def _build_query_where(self, ctx):
         if self._where is None:
             return None
-        res = self._build_query_where_iter(self._where)
+        res = self._build_query_where_iter(self._where, ctx)
         if res is None:
             return None
         return sql.SQL('WHERE ') + res
 
-    def _build_query_where_iter(self, cond):
+    def _build_query_where_iter(self, cond, ctx):
         if isinstance(cond, where_cond_arr):
-            conds = [self._build_query_where_iter(x) for x in cond.conds]
+            conds = [self._build_query_where_iter(x, ctx) for x in cond.conds]
             conds = [x for x in conds if x is not None]
             if len(conds) == 0:
                 return None
@@ -442,12 +443,12 @@ class WhereBehaviour:
                 if cond.op in self._build_query_where_map\
                 else None
             if method is None:
-                raise Exception('Unknown where operator "%s"' % cond.op)
+                raise Exception('Unknown where operator "{}"'.format(cond.op))
             # noinspection PyArgumentList
-            return method(self, cond)
+            return method(self, cond, ctx)
         if isinstance(cond, where_cond_raw):
             if isinstance(cond.value, str):
-                res = self._o.quote_string(cond.value)
+                res = self._o.quote_string(cond.value, ctx)
             elif isinstance(cond.value, sql.Composable):
                 res = cond.value
             else:
@@ -455,40 +456,42 @@ class WhereBehaviour:
             return res
         return None
 
-    def _build_query_where_lgte(self, cond: where_cond):
+    def _build_query_where_lgte(self, cond: where_cond, ctx):
         value = cond.value
         if isinstance(value, BaseCommand):
-            placeholder = sql.SQL('(') + self._o.build_subquery(value) + sql.SQL(')')
+            built_cmd = self._o.build_subquery(value, ctx)
+            placeholder = sql.SQL('(') + built_cmd.as_string() + sql.SQL(')')
         elif cond.op in ['=', '<>', '!='] and isinstance(value, Iterable)\
                 and not isinstance(value, str):
             in_op = WHERE_OP_IN if cond.op == '=' else WHERE_OP_NOT_IN
-            return self._build_query_where_in(where_cond(in_op, cond.ident, cond.value))
+            return self._build_query_where_in(where_cond(in_op, cond.ident, cond.value), ctx)
         elif cond.op in ['=', '<>', '!='] and isinstance(value, bool):
             if cond.op != '=':
                 value = not value
-            return self._o.quote_string(cond.ident)\
+            return self._o.quote_string(cond.ident, ctx)\
                 if value\
-                else self._build_query_where_not(where_cond(WHERE_OP_NOT, cond.ident, None))
+                else self._build_query_where_not(where_cond(WHERE_OP_NOT, cond.ident, None), ctx)
         elif cond.op in ['=', '<>', '!='] and value is None:
             is_null_op = WHERE_OP_IS_NULL if cond.op == '=' else WHERE_OP_IS_NOT_NULL
-            return self._build_query_where_is_null(where_cond(is_null_op, cond.ident, None))
+            return self._build_query_where_is_null(where_cond(is_null_op, cond.ident, None), ctx)
         else:
-            placeholder = self._o._set_param(value)
+            placeholder = ctx.set_param(value)
         return sql.SQL(' %s ' % cond.op).join([
-            self._o.quote_string(cond.ident),
+            self._o.quote_string(cond.ident, ctx),
             placeholder,
         ])
 
-    def _build_query_where_is_null(self, cond: where_cond):
+    def _build_query_where_is_null(self, cond: where_cond, ctx):
         return sql.SQL(' ').join([
-            self._o.quote_string(cond.ident),
+            self._o.quote_string(cond.ident, ctx),
             sql.SQL(cond.op.upper()),
         ])
 
-    def _build_query_where_in(self, cond: where_cond):
+    def _build_query_where_in(self, cond: where_cond, ctx):
         value = cond.value
         if isinstance(value, BaseCommand):
-            placeholder = sql.SQL('(') + self._o.build_subquery(value) + sql.SQL(')')
+            built_cmd = self._o.build_subquery(value, ctx)
+            placeholder = sql.SQL('(') + built_cmd.query + sql.SQL(')')
         else:
             if not isinstance(value, tuple):
                 value = tuple(value) if not isinstance(value, str) else tuple([value])
@@ -496,13 +499,13 @@ class WhereBehaviour:
             # 'in ()' with 'false'. That is behaviour which the users expects.
             if len(value) == 0:
                 return sql.SQL('false')
-            placeholder = self._o._set_param(value)
-        return sql.SQL(' %s ' % cond.op.upper()).join([
-            self._o.quote_string(cond.ident),
+            placeholder = ctx.set_param(value)
+        return sql.SQL(' {} '.format(cond.op.upper())).join([
+            self._o.quote_string(cond.ident, ctx),
             placeholder,
         ])
 
-    def _build_query_where_like(self, cond: where_cond):
+    def _build_query_where_like(self, cond: where_cond, ctx):
         values = cond.value
         if isinstance(values, str):
             values = [values]
@@ -531,30 +534,33 @@ class WhereBehaviour:
                 value = value.replace('$', '$$').replace('%', '$%')
                 escaping = sql.SQL(" ESCAPE '$'")
             conds.append(sql.SQL("{ident} {operation} {value}{escaping}").format(
-                ident=self._o.quote_string(cond.ident),
+                ident=self._o.quote_string(cond.ident, ctx),
                 operation=sql.SQL(operation.upper()),
-                value=self._o._set_param('{}{}{}'.format(esc_char, value, esc_char)),
+                value=ctx.set_param('{esc_char}{}{esc_char}'.format(value, esc_char=esc_char)),
                 escaping=escaping,
             ))
         return sql.SQL('(') + sql.SQL(' %s ' % comp_operation).join(conds) + sql.SQL(')')\
             if len(conds) > 0\
             else None
 
-    def _build_query_where_not(self, cond: where_cond):
-        return sql.SQL('%s ' % cond.op.upper()) + self._o.quote_string(cond.ident)
+    def _build_query_where_not(self, cond: where_cond, ctx):
+        return sql.SQL('{} '.format(cond.op.upper())) + self._o.quote_string(cond.ident, ctx)
 
-    def _build_query_where_between(self, cond: where_cond):
+    def _build_query_where_between(self, cond: where_cond, ctx):
         lower, upper = cond.value
-        param1 = self._o._set_param(lower)
-        param2 = self._o._set_param(upper)
-        return self._o.quote_string(cond.ident) + sql.SQL(' {op} {lower} AND {upper}').format(
-            op=sql.SQL(cond.op.upper()),
-            lower=param1,
-            upper=param2,
+        param1 = ctx.set_param(lower)
+        param2 = ctx.set_param(upper)
+        return (
+            self._o.quote_string(cond.ident, ctx)
+            + sql.SQL(' {op} {lower} AND {upper}').format(
+                 op=sql.SQL(cond.op.upper()),
+                 lower=param1,
+                 upper=param2,
+            )
         )
 
-    def _build_query_where_exists(self, cond: where_cond):
-        return sql.SQL(cond.op.upper() + ' ') + self._o.quote_string(cond.ident)
+    def _build_query_where_exists(self, cond: where_cond, ctx):
+        return sql.SQL(cond.op.upper() + ' ') + self._o.quote_string(cond.ident, ctx)
 
     _build_query_where_map = {
         WHERE_OP_EQUAL: _build_query_where_lgte,

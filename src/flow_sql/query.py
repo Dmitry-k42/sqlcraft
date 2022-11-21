@@ -102,7 +102,7 @@ class Query(BaseCommand, WhereBehaviour, WithBehaviour, FromBehaviour):
             self._select.append(field)
         return self
 
-    def _join_table(self, join_type, table, on=None, alias=None, lateral=False):
+    def join_table(self, join_type, table, on=None, alias=None, lateral=False):
         """
         Add a new JOIN query block. There are following methods available:
         * `join_full` - for JOIN FULL
@@ -137,10 +137,11 @@ class Query(BaseCommand, WhereBehaviour, WithBehaviour, FromBehaviour):
         ))
         return self
 
-    join_left = functools.partialmethod(_join_table, JOIN_LEFT)
-    join_right = functools.partialmethod(_join_table, JOIN_RIGHT)
-    join_ = functools.partialmethod(_join_table, JOIN_INNER)
-    join_full = functools.partialmethod(_join_table, JOIN_FULL)
+    join_left = functools.partialmethod(join_table, JOIN_LEFT)
+    join_right = functools.partialmethod(join_table, JOIN_RIGHT)
+    join_ = functools.partialmethod(join_table, JOIN_INNER)
+    join_inner = functools.partialmethod(join_table, JOIN_INNER)
+    join_full = functools.partialmethod(join_table, JOIN_FULL)
 
     def group(self, fields):
         """
@@ -239,22 +240,21 @@ class Query(BaseCommand, WhereBehaviour, WithBehaviour, FromBehaviour):
         self._limit = limit
         return self
 
-    def build_query(self, param_name_prefix=None):
-        super().build_query(param_name_prefix)
+    def _on_build_query(self, ctx):
         parts = [
-            self._build_query_with(),
-            self._build_query_select(),
-            self._build_query_from(),
-            self._build_query_join(),
-            self._build_query_where(),
-            self._build_query_group(),
-            self._build_query_order(),
+            self._build_query_with(ctx),
+            self._build_query_select(ctx),
+            self._build_query_from(ctx),
+            self._build_query_join(ctx),
+            self._build_query_where(ctx),
+            self._build_query_group(ctx),
+            self._build_query_order(ctx),
             self._build_query_limit(),
         ]
         res = sql.SQL(' ').join([p for p in parts if p is not None])
         return res
 
-    def _build_query_select(self):
+    def _build_query_select(self, ctx):
         prefix = sql.SQL('SELECT')
         if self._distinct:
             prefix = prefix + sql.SQL(' DISTINCT')
@@ -263,14 +263,14 @@ class Query(BaseCommand, WhereBehaviour, WithBehaviour, FromBehaviour):
 
         def build_field(field):
             if isinstance(field, const):
-                return self._o._set_param(field.value)
-            return self.quote_string(field)
+                return ctx.set_param(field.value)
+            return self.quote_string(field, ctx)
 
         return prefix + sql.SQL(' ') + (sql.SQL(', ').join([
             build_field(field) for field in self._select
         ]))
 
-    def _build_query_join(self):
+    def _build_query_join(self, ctx):
         if len(self._join) == 0:
             return None
         res = []
@@ -279,31 +279,31 @@ class Query(BaseCommand, WhereBehaviour, WithBehaviour, FromBehaviour):
             joined_items = sql.SQL('{join_type} JOIN{lateral} {table}').format(
                 join_type=sql.SQL(join_type),
                 lateral=sql.SQL(' LATERAL' if lateral else ''),
-                table=self.quote_string(table),
+                table=self.quote_string(table, ctx),
             )
             if on:
-                joined_items += sql.SQL(' ON ') + self._build_query_where_iter(on)
+                joined_items += sql.SQL(' ON ') + self._build_query_where_iter(on, ctx)
             res.append(joined_items)
         return sql.SQL(' ').join(res)
 
-    def _build_query_group(self):
+    def _build_query_group(self, ctx):
         if len(self._group) == 0:
             return None
         return sql.SQL('GROUP BY ') + (sql.SQL(', ').join([
-            self.quote_string(field) for field in self._group
+            self.quote_string(field, ctx) for field in self._group
         ]))
 
-    def _build_query_order(self):
+    def _build_query_order(self, ctx):
         if len(self._order) == 0:
             return None
         return sql.SQL('ORDER BY ') + (sql.SQL(', ').join([
             sql.SQL('{}{}').format(
-                self.quote_string(o.ident),
+                self.quote_string(o.ident, ctx),
                 sql.SQL(' ' + o.sort if o.sort else ''),
             ) for o in self._order
         ]))
 
-    def _build_query_limit(self) -> sql.Composable:
+    def _build_query_limit(self):
         return sql.SQL('LIMIT {}').format(sql.Literal(self._limit)) if self._limit else None
 
 
