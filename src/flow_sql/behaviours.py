@@ -17,7 +17,7 @@ from .constants import WHERE_OP_AND, WHERE_OP_OR, WHERE_OP_IS_NULL, WHERE_OP_IS_
     WHERE_OP_ILIKE, WHERE_OP_NOT_LIKE, WHERE_OP_NOT_ILIKE, WHERE_OP_OR_LIKE, WHERE_OP_OR_ILIKE,\
     WHERE_OP_OR_NOT_LIKE, WHERE_OP_OR_NOT_ILIKE, WHERE_OP_BETWEEN, WHERE_OP_NOT_BETWEEN,\
     WHERE_OP_EXISTS, WHERE_OP_NOT_EXISTS, WHERE_OPS
-from .misc import alias, where_cond, where_cond_arr, where_cond_raw, with_subquery
+from .misc import Alias, WhereCond, WhereCondArr, WhereCondRaw, WithSubquery
 from .base import BaseCommand
 
 
@@ -106,7 +106,7 @@ class WithBehaviour:
         :param recursive: whether this subquery is recursive
         :return: self
         """
-        self._with.append(with_subquery(alias(ident=subquery, alias=alias_), recursive))
+        self._with.append(WithSubquery(Alias(ident=subquery, alias=alias_), recursive))
         return self
 
     def _build_query_with(self, ctx):
@@ -203,7 +203,7 @@ class ReturningBehaviour:
         :param fields: the fields to add
         :return: self
         """
-        if isinstance(fields, alias):
+        if isinstance(fields, Alias):
             self._returning.append(fields)
             return self
         if isinstance(fields, str):
@@ -305,12 +305,12 @@ class WhereBehaviour:
 
     def _where_arr(self, cond, cond_op):
         cond_parsed = self._parse_where_cond(cond)
-        if isinstance(self._where, where_cond_arr) and self._where.op == cond_op:
-            if isinstance(cond_parsed, where_cond_arr) and cond_parsed.op == cond_op:
+        if isinstance(self._where, WhereCondArr) and self._where.op == cond_op:
+            if isinstance(cond_parsed, WhereCondArr) and cond_parsed.op == cond_op:
                 self._where.conds.extend(cond_parsed.conds)
             else:
                 self._where.conds.append(cond_parsed)
-        elif (isinstance(cond_parsed, where_cond_arr)
+        elif (isinstance(cond_parsed, WhereCondArr)
                 and cond_parsed.op == cond_op and self._where is None):
             self._where = cond_parsed
         else:
@@ -318,16 +318,16 @@ class WhereBehaviour:
             if self._where:
                 conds.append(self._where)
             conds.append(cond_parsed)
-            self._where = where_cond_arr(op=cond_op, conds=conds)
+            self._where = WhereCondArr(op=cond_op, conds=conds)
         return self
 
     def _parse_where_cond(self, cond):
-        if isinstance(cond, where_cond):
+        if isinstance(cond, WhereCond):
             return cond
-        if isinstance(cond, where_cond_arr):
+        if isinstance(cond, WhereCondArr):
             return cond
         if type(cond) in [bool, float, int]:
-            return where_cond_raw(value=cond)
+            return WhereCondRaw(value=cond)
         if isinstance(cond, str):
             return self._parse_where_str(cond)
         if isinstance(cond, Sized) and isinstance(cond, Sequence):
@@ -337,7 +337,7 @@ class WhereBehaviour:
         elif isinstance(cond, Mapping):
             return self._parse_where_mapping(cond)
         elif isinstance(cond, sql.Composable):
-            return where_cond_raw(value=cond)
+            return WhereCondRaw(value=cond)
         raise Exception('Unknown format of the where condition')
 
     def _parse_where_str(self, cond):
@@ -347,19 +347,19 @@ class WhereBehaviour:
         }
         for suffix, (operation, value) in known_suffixes.items():
             if cond.lower().endswith(suffix):
-                return where_cond(operation, cond[:-len(suffix)], value)
+                return WhereCond(operation, cond[:-len(suffix)], value)
         known_prefixes = {
             'not ': (WHERE_OP_NOT, None),
         }
         for prefix, (operation, value) in known_prefixes.items():
             if cond.lower().startswith(prefix):
-                return where_cond(operation, cond[len(prefix):], value)
-        return where_cond_raw(value=cond)
+                return WhereCond(operation, cond[len(prefix):], value)
+        return WhereCondRaw(value=cond)
 
     def _parse_where_list(self, cond):
         operation = cond[0].lower()
         if operation in WHERE_COMP_OPS:
-            return where_cond_arr(operation, [self._parse_where_cond(x) for x in cond[1:]])
+            return WhereCondArr(operation, [self._parse_where_cond(x) for x in cond[1:]])
         if operation in self._parse_where_map:
             # noinspection PyArgumentList
             return self._parse_where_map[operation](self, cond)
@@ -367,7 +367,7 @@ class WhereBehaviour:
             op2 = WHERE_OP_IN\
                 if isinstance(cond[1], Sequence) and not isinstance(cond[1], str)\
                 else WHERE_OP_EQUAL
-            return where_cond(op2, cond[0], cond[1])
+            return WhereCond(op2, cond[0], cond[1])
         return None
 
     def _parse_where_mapping(self, cond):
@@ -381,18 +381,18 @@ class WhereBehaviour:
                 op2 = WHERE_OP_IS_NULL
             else:
                 op2 = WHERE_OP_EQUAL
-            conds.append(where_cond(op2, ident, value))
-        return where_cond_arr(WHERE_OP_AND, conds)
+            conds.append(WhereCond(op2, ident, value))
+        return WhereCondArr(WHERE_OP_AND, conds)
 
     def _parse_where_0_param(self, cond):
-        return where_cond(op=cond[0].lower(), ident=cond[1], value=None)
+        return WhereCond(op=cond[0].lower(), ident=cond[1], value=None)
 
     def _parse_where_1_param(self, cond):
-        return where_cond(op=cond[0].lower(), ident=cond[1], value=cond[2])
+        return WhereCond(op=cond[0].lower(), ident=cond[1], value=cond[2])
 
     def _parse_where_between(self, cond):
-        return where_cond(op=cond[0].lower(), ident=cond[1],
-                          value=(cond[2], cond[3]) if len(cond) == 4 else cond[2])
+        return WhereCond(op=cond[0].lower(), ident=cond[1],
+                         value=(cond[2], cond[3]) if len(cond) == 4 else cond[2])
 
     _parse_where_map = {
         WHERE_OP_EQUAL: _parse_where_1_param,
@@ -431,14 +431,14 @@ class WhereBehaviour:
         return sql.SQL('WHERE ') + res
 
     def _build_query_where_iter(self, cond, ctx):
-        if isinstance(cond, where_cond_arr):
+        if isinstance(cond, WhereCondArr):
             conds = [self._build_query_where_iter(x, ctx) for x in cond.conds]
             conds = [x for x in conds if x is not None]
             if len(conds) == 0:
                 return None
             glue = sql.SQL(' %s ' % cond.op.upper())
             return glue.join([sql.SQL('(') + x + sql.SQL(')') for x in conds])
-        if isinstance(cond, where_cond):
+        if isinstance(cond, WhereCond):
             method = self._build_query_where_map[cond.op]\
                 if cond.op in self._build_query_where_map\
                 else None
@@ -446,7 +446,7 @@ class WhereBehaviour:
                 raise Exception('Unknown where operator "{}"'.format(cond.op))
             # noinspection PyArgumentList
             return method(self, cond, ctx)
-        if isinstance(cond, where_cond_raw):
+        if isinstance(cond, WhereCondRaw):
             if isinstance(cond.value, str):
                 res = self._o.quote_string(cond.value, ctx)
             elif isinstance(cond.value, sql.Composable):
@@ -456,7 +456,7 @@ class WhereBehaviour:
             return res
         return None
 
-    def _build_query_where_lgte(self, cond: where_cond, ctx):
+    def _build_query_where_lgte(self, cond: WhereCond, ctx):
         value = cond.value
         if isinstance(value, BaseCommand):
             built_cmd = self._o.build_subquery(value, ctx)
@@ -464,16 +464,16 @@ class WhereBehaviour:
         elif cond.op in ['=', '<>', '!='] and isinstance(value, Iterable)\
                 and not isinstance(value, str):
             in_op = WHERE_OP_IN if cond.op == '=' else WHERE_OP_NOT_IN
-            return self._build_query_where_in(where_cond(in_op, cond.ident, cond.value), ctx)
+            return self._build_query_where_in(WhereCond(in_op, cond.ident, cond.value), ctx)
         elif cond.op in ['=', '<>', '!='] and isinstance(value, bool):
             if cond.op != '=':
                 value = not value
             return self._o.quote_string(cond.ident, ctx)\
                 if value\
-                else self._build_query_where_not(where_cond(WHERE_OP_NOT, cond.ident, None), ctx)
+                else self._build_query_where_not(WhereCond(WHERE_OP_NOT, cond.ident, None), ctx)
         elif cond.op in ['=', '<>', '!='] and value is None:
             is_null_op = WHERE_OP_IS_NULL if cond.op == '=' else WHERE_OP_IS_NOT_NULL
-            return self._build_query_where_is_null(where_cond(is_null_op, cond.ident, None), ctx)
+            return self._build_query_where_is_null(WhereCond(is_null_op, cond.ident, None), ctx)
         else:
             placeholder = ctx.set_param(value)
         return sql.SQL(' %s ' % cond.op).join([
@@ -481,13 +481,13 @@ class WhereBehaviour:
             placeholder,
         ])
 
-    def _build_query_where_is_null(self, cond: where_cond, ctx):
+    def _build_query_where_is_null(self, cond: WhereCond, ctx):
         return sql.SQL(' ').join([
             self._o.quote_string(cond.ident, ctx),
             sql.SQL(cond.op.upper()),
         ])
 
-    def _build_query_where_in(self, cond: where_cond, ctx):
+    def _build_query_where_in(self, cond: WhereCond, ctx):
         value = cond.value
         if isinstance(value, BaseCommand):
             built_cmd = self._o.build_subquery(value, ctx)
@@ -505,7 +505,7 @@ class WhereBehaviour:
             placeholder,
         ])
 
-    def _build_query_where_like(self, cond: where_cond, ctx):
+    def _build_query_where_like(self, cond: WhereCond, ctx):
         values = cond.value
         if isinstance(values, str):
             values = [values]
@@ -543,10 +543,10 @@ class WhereBehaviour:
             if len(conds) > 0\
             else None
 
-    def _build_query_where_not(self, cond: where_cond, ctx):
+    def _build_query_where_not(self, cond: WhereCond, ctx):
         return sql.SQL('{} '.format(cond.op.upper())) + self._o.quote_string(cond.ident, ctx)
 
-    def _build_query_where_between(self, cond: where_cond, ctx):
+    def _build_query_where_between(self, cond: WhereCond, ctx):
         lower, upper = cond.value
         param1 = ctx.set_param(lower)
         param2 = ctx.set_param(upper)
@@ -559,7 +559,7 @@ class WhereBehaviour:
             )
         )
 
-    def _build_query_where_exists(self, cond: where_cond, ctx):
+    def _build_query_where_exists(self, cond: WhereCond, ctx):
         return sql.SQL(cond.op.upper() + ' ') + self._o.quote_string(cond.ident, ctx)
 
     _build_query_where_map = {
