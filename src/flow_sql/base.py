@@ -8,7 +8,7 @@ from collections.abc import Mapping, Iterable
 
 from psycopg2 import sql
 
-from .misc import alias, expr
+from .misc import Alias, Expr
 
 
 def _prepare_param_value(value, json_stringify, json_dump_fn):
@@ -268,11 +268,11 @@ class BaseCommand:
         if isinstance(val, BaseCommand):
             built_cmd = self.build_subquery(val, ctx)
             return sql.SQL('({})'.format(built_cmd.as_string()))
-        if isinstance(val, alias):
+        if isinstance(val, Alias):
             quoted_ident = self.quote_string(val.ident, ctx)
             return quoted_ident if val.alias is None \
                 else sql.SQL('{} AS {}').format(quoted_ident, self.quote_string(val.alias, ctx))
-        if isinstance(val, expr):
+        if isinstance(val, Expr):
             return sql.SQL(val.value)
         if not isinstance(val, str):
             return sql.Literal(val)
@@ -292,18 +292,18 @@ class BaseCommand:
             1) Invoke with val = 'field_name AS age' returns alias(ident='field_name', alias='age')
         :return: a new `alias` instance
         """
-        if isinstance(val, alias):
+        if isinstance(val, Alias):
             return val
         if _alias is None and isinstance(val, str):
             match = re.fullmatch(r'^([\w\.]+)\s+(as\s+)?(\w+)$', val, re.IGNORECASE)
             if match:
-                return alias(ident=match.group(1), alias=match.group(3))
-        return alias(val, _alias)
+                return Alias(ident=match.group(1), alias=match.group(3))
+        return Alias(val, _alias)
 
     def _place_value(self, value, ctx):
         if isinstance(value, sql.SQL):
             val = value
-        elif isinstance(value, expr):
+        elif isinstance(value, Expr):
             val = self.quote_string(value.value, ctx)
         elif isinstance(value, BaseCommand):
             val = self.quote_string(value, ctx)

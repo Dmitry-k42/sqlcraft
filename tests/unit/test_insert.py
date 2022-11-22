@@ -1,4 +1,4 @@
-from flow_sql import Command, expr, Query
+from flow_sql import Command, Expr, Query
 from flow_sql.base import BaseCommand
 from flow_sql.behaviours import ReturningBehaviour, WithBehaviour, TableBehaviour
 from flow_sql.insert import Insert
@@ -166,7 +166,7 @@ def test_on_conflict_do_update():
             .on_conflict_do_update(
                 'id',
                 {
-                    'surname': expr('excluded.surname'),
+                    'surname': Expr('excluded.surname'),
                 },
             )
             .execute()

@@ -9,7 +9,7 @@ from collections.abc import Sized, Mapping, Sequence, Iterable
 from psycopg2 import sql
 
 from .constants import ORDER_ASC, ORDER_DESC, JOIN_FULL, JOIN_LEFT, JOIN_RIGHT, JOIN_INNER
-from .misc import alias, join, order, const
+from .misc import Alias, Join, Order, Const
 from .base import BaseCommand
 from .behaviours import FromBehaviour, WhereBehaviour, WithBehaviour
 
@@ -89,7 +89,7 @@ class Query(BaseCommand, WhereBehaviour, WithBehaviour, FromBehaviour):
         :param fields: the fields to add
         :return: self
         """
-        if isinstance(fields, alias):
+        if isinstance(fields, Alias):
             self._select.append(fields)
             return self
         if isinstance(fields, str):
@@ -130,7 +130,7 @@ class Query(BaseCommand, WhereBehaviour, WithBehaviour, FromBehaviour):
         :param lateral: flag for LATERAL keyword
         :return: self
         """
-        self._join.append(join(
+        self._join.append(Join(
             join_type,
             self.parse_column_or_table(table, alias),
             self._parse_where_cond(on), lateral
@@ -139,6 +139,7 @@ class Query(BaseCommand, WhereBehaviour, WithBehaviour, FromBehaviour):
 
     join_left = functools.partialmethod(join_table, JOIN_LEFT)
     join_right = functools.partialmethod(join_table, JOIN_RIGHT)
+    join = functools.partialmethod(join_table, JOIN_INNER)
     join_ = functools.partialmethod(join_table, JOIN_INNER)
     join_inner = functools.partialmethod(join_table, JOIN_INNER)
     join_full = functools.partialmethod(join_table, JOIN_FULL)
@@ -215,15 +216,15 @@ class Query(BaseCommand, WhereBehaviour, WithBehaviour, FromBehaviour):
                 else:
                     ident = field
                     sort = None
-                self._order.append(order(ident, sort))
-        elif isinstance(field, order):
+                self._order.append(Order(ident, sort))
+        elif isinstance(field, Order):
             self._order.append(field)
         elif isinstance(field, Mapping):
-            self._order.append(order(field['field'], field.get('sort')))
+            self._order.append(Order(field['field'], field.get('sort')))
         elif (isinstance(field, Sized)
                 and isinstance(field, Sequence) and len(field) == 2
                 and field[1] in (ORDER_ASC, ORDER_DESC)):
-            self._order.append(order(field[0], field[1]))
+            self._order.append(Order(field[0], field[1]))
         elif isinstance(field, Iterable):
             for field_el in field:
                 self.add_order(field_el)
@@ -262,7 +263,7 @@ class Query(BaseCommand, WhereBehaviour, WithBehaviour, FromBehaviour):
             return prefix
 
         def build_field(field):
-            if isinstance(field, const):
+            if isinstance(field, Const):
                 return ctx.set_param(field.value)
             return self.quote_string(field, ctx)
 

@@ -2,7 +2,7 @@ from typing import Generator, Mapping
 
 import pytest
 
-from flow_sql import Query, Select, order, alias
+from flow_sql import Query, Select, Order, Alias
 from flow_sql.base import BaseCommand
 from flow_sql.behaviours import WhereBehaviour, FromBehaviour, WithBehaviour
 from flow_sql.conn import DBRow
@@ -27,7 +27,7 @@ def test_select():
         q = Query(conn)
         q.select('id')
         assert_query(q, 'SELECT "id"', {})
-        q.add_select(['name as fullname', alias('age', 'years_full'), "gender sex"])
+        q.add_select(['name as fullname', Alias('age', 'years_full'), "gender sex"])
         assert_query(q, 'SELECT "id", "name" AS "fullname", "age" AS "years_full", "gender" AS "sex"', {})
         q.select('id, name, age')
         assert_query(q, 'SELECT "id", "name", "age"', {})
@@ -48,7 +48,7 @@ def test_select():
         assert_query(q, 'SELECT NULL', {})
 
         sq = Query(conn).select('count(*)').from_('t2')
-        q.select(alias(ident=sq, alias='sq'))
+        q.select(Alias(ident=sq, alias='sq'))
         assert_query(q, 'SELECT (SELECT count(*) FROM "t2") AS "sq"', {})
 
         q.distinct().select('id')
@@ -71,7 +71,7 @@ def test_alias():
         assert_query(q, 'SELECT * FROM "t1" AS "src", "t2" AS "src2"', {})
         q.from_('t1 as src')
         assert_query(q, 'SELECT * FROM "t1" AS "src"', {})
-        q.from_(alias(ident='t1', alias='src'))
+        q.from_(Alias(ident='t1', alias='src'))
         assert_query(q, 'SELECT * FROM "t1" AS "src"', {})
 
 
@@ -113,9 +113,9 @@ def test_order():
         assert_query(q, 'SELECT * FROM "t1" ORDER BY "id" DESC', {})
         q.order([['id', ORDER_DESC], ('name', ORDER_DESC)])
         assert_query(q, 'SELECT * FROM "t1" ORDER BY "id" DESC, "name" DESC', {})
-        q.order(order('id', ORDER_ASC))
+        q.order(Order('id', ORDER_ASC))
         assert_query(q, 'SELECT * FROM "t1" ORDER BY "id" ASC', {})
-        q.order([order('id', ORDER_ASC), order('name', ORDER_DESC)])
+        q.order([Order('id', ORDER_ASC), Order('name', ORDER_DESC)])
         assert_query(q, 'SELECT * FROM "t1" ORDER BY "id" ASC, "name" DESC', {})
         q.order({'field': 'id', 'sort': ORDER_DESC})
         assert_query(q, 'SELECT * FROM "t1" ORDER BY "id" DESC', {})
