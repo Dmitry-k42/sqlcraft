@@ -1,0 +1,19 @@
+name: On-commit
+on:
+  push:
+    branches-ignore:
+      - main
+jobs:
+  Linting:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Clone the project
+        uses: actions/checkout@v3
+      - name: Install the package and its dependencies
+        run: python3 -m pip install .
+      - name: Installing the linter tool
+        run: python3 -m pip install pylint
+      - name: Execute checking
+        run: |
+          cd ${{ github.workspace }}
+          python3 -m pylint --rcfile .pylintrc --persistent n ./src/
