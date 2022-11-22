@@ -13,7 +13,35 @@ jobs:
         run: python3 -m pip install .
       - name: Installing the linter tool
         run: python3 -m pip install pylint
-      - name: Execute checking
+      - name: Execute the linting
         run: |
           cd ${{ github.workspace }}
           python3 -m pylint --rcfile .pylintrc --persistent n ./src/
+  Testing:
+    runs-on: ubuntu-latest
+    needs: Linting
+    strategy:
+      matrix:
+        python_version: ["3.7", "3.11"]
+    services:
+      postgres:
+        image: postgres
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: test
+        ports:
+          - 5432:5432
+    steps:
+      - name: Clone the project
+        uses: actions/checkout@v3
+      - name: Setup Python ${{ matrix.python_version }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python_version }}
+      - name: Install the package
+        run: python3 -m pip install .[dev]
+      - name: Run tests
+        run: |
+          cd ${{ github.workspace }}
+          python3 -m pytest ./tests/
