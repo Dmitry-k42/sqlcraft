@@ -3,7 +3,7 @@ import os
 import psycopg2
 from dotenv import load_dotenv
 
-from flow_sql.conn import Connection
+from sqlcraft.conn import Connection
 
 load_dotenv()
 

@@ -2,8 +2,8 @@ import pytest
 import psycopg2
 from psycopg2.extensions import connection
 
-from flow_sql.conn import Connection, DBRow
-from flow_sql.errors import OperationalError
+from sqlcraft.conn import Connection, DBRow
+from sqlcraft.errors import OperationalError
 from tests.connection import open_test_connection
 from tests.funcs import create_table, drop_table, insert_rows
 

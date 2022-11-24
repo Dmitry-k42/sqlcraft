@@ -1,4 +1,4 @@
-from flow_sql import now
+from sqlcraft import now
 from psycopg2 import sql
 
 

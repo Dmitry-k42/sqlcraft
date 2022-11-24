@@ -1,8 +1,8 @@
 import pytest
 
-from flow_sql import Update
-from flow_sql.base import BaseCommand
-from flow_sql.behaviours import WhereBehaviour, TableBehaviour, WithBehaviour, ReturningBehaviour
+from sqlcraft import Update
+from sqlcraft.base import BaseCommand
+from sqlcraft.behaviours import WhereBehaviour, TableBehaviour, WithBehaviour, ReturningBehaviour
 from tests.connection import open_test_connection
 from tests.funcs import create_table, insert_rows
 

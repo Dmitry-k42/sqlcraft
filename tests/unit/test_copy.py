@@ -1,4 +1,4 @@
-from flow_sql import Copy
+from sqlcraft import Copy
 from tests.connection import open_test_connection
 from tests.funcs import create_table
 

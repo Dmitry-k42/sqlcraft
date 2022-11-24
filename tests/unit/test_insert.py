@@ -1,7 +1,7 @@
-from flow_sql import Command, Expr, Query
-from flow_sql.base import BaseCommand
-from flow_sql.behaviours import ReturningBehaviour, WithBehaviour, TableBehaviour
-from flow_sql.insert import Insert
+from sqlcraft import Command, Expr, Query
+from sqlcraft.base import BaseCommand
+from sqlcraft.behaviours import ReturningBehaviour, WithBehaviour, TableBehaviour
+from sqlcraft.insert import Insert
 from tests.connection import open_test_connection
 from tests.funcs import create_table
 
