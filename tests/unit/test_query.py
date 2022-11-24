@@ -2,11 +2,11 @@ from typing import Generator, Mapping
 
 import pytest
 
-from flow_sql import Query, Select, Order, Alias
-from flow_sql.base import BaseCommand
-from flow_sql.behaviours import WhereBehaviour, FromBehaviour, WithBehaviour
-from flow_sql.conn import DBRow
-from flow_sql.constants import *
+from sqlcraft import Query, Select, Order, Alias
+from sqlcraft.base import BaseCommand
+from sqlcraft.behaviours import WhereBehaviour, FromBehaviour, WithBehaviour
+from sqlcraft.conn import DBRow
+from sqlcraft.constants import *
 from tests.connection import open_test_connection
 from tests.funcs import assert_query, create_table, insert_rows
 

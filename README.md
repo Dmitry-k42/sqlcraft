@@ -2,7 +2,7 @@
 
 # Build SQL queries fluently
 
-`flow_sql` is a Python package for constructing SQL queries with [fluent interface](https://en.wikipedia.org/wiki/Method_chaining).
+`sqlcraft` is a Python package for constructing SQL queries with [fluent interface](https://en.wikipedia.org/wiki/Method_chaining).
 
 **Important**: Currently the package supports PostgreSQL database **only**.
 
@@ -11,7 +11,7 @@
 Here is a simple query:
 ```python
 import psycopg2
-from flow_sql import Query
+from sqlcraft import Query
 
 conn = psycopg2.connect(<put your connection credentials here>)
 cmd = (
@@ -157,7 +157,7 @@ subq = Query(conn).select('*').from_('devices').where('active')
 # INSERT
 One statement usage:
 ```python
-from flow_sql import Insert
+from sqlcraft import Insert
 
 Insert(
     conn,
@@ -209,7 +209,7 @@ PostgreSQL extends standard syntax for `INSERT` command. It allows to handle con
 ("ON CONFLICT Clause" section). To create this clause you can use `.on_conflict_do_nothing()`
 and `.on_conflict_do_update()` methods.
 ```python
-from flow_sql import Expr
+from sqlcraft import Expr
 
 (
     # If another row in the table with id 42 already exists,
@@ -291,7 +291,7 @@ Fluent syntax:
 
 Simple syntax:
 ```python
-from flow_sql import Delete
+from sqlcraft import Delete
 
 Delete(
     conn,
@@ -328,9 +328,9 @@ To remove all rows from the table, you should explicitly call `where` method lik
 # COPY
 
 `COPY` command is a good choise for bulk insert lots of rows into a table. Here is how to use
-it with `flow_sql`:
+it with `sqlcraft`:
 ```python
-from flow_sql import Copy
+from sqlcraft import Copy
 
 Copy(
     conn,
@@ -350,7 +350,7 @@ Above the common most-used queries were described. But sometimes we face unusual
 It is possible to call raw queries with `Command` class:
 
 ```python
-from flow_sql import Command
+from sqlcraft import Command
 
 Command(
     conn,
@@ -380,7 +380,7 @@ This package provides a custom `Connection` class which replaces
 this way:
 ```python
 import psycopg2
-from flow_sql.conn import Connection
+from sqlcraft.conn import Connection
 
 conn = psycopg2.connect(
     <put your connection credentials here>,

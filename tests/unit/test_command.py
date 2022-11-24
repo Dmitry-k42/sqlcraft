@@ -1,5 +1,5 @@
-from flow_sql import Command
-from flow_sql.base import BaseCommand
+from sqlcraft import Command
+from sqlcraft.base import BaseCommand
 from tests.connection import open_test_connection
 
 

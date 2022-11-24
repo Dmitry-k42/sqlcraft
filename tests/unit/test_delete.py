@@ -1,8 +1,8 @@
 import pytest
 
-from flow_sql import Delete, Query
-from flow_sql.base import BaseCommand
-from flow_sql.behaviours import WhereBehaviour, WithBehaviour, ReturningBehaviour, FromBehaviour
+from sqlcraft import Delete, Query
+from sqlcraft.base import BaseCommand
+from sqlcraft.behaviours import WhereBehaviour, WithBehaviour, ReturningBehaviour, FromBehaviour
 from tests.connection import open_test_connection
 from tests.funcs import assert_query, create_table, insert_rows, verify_table
 
