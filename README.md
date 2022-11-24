@@ -6,6 +6,12 @@
 
 **Important**: Currently the package supports PostgreSQL database **only**.
 
+## Installation
+
+```shell
+pip3 install sqlcraft
+```
+
 # SELECT
 
 Here is a simple query:
