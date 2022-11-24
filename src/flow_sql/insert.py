@@ -125,6 +125,8 @@ class Insert(BaseCommand, WithBehaviour, ReturningBehaviour, TableBehaviour):
             for field in values.keys():
                 if field not in self._columns:
                     self._columns.append(field)
+            if self._values is None:
+                self._values = []
             self._values.append(values)
         elif isinstance(values, Sequence):
             if len(self._columns) == 0:
@@ -134,6 +136,8 @@ class Insert(BaseCommand, WithBehaviour, ReturningBehaviour, TableBehaviour):
             for column in self._columns:
                 row[column] = values[i]
                 i += 1
+            if self._values is None:
+                self._values = []
             self._values.append(row)
         else:
             raise Exception('Unsupported values type')

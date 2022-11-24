@@ -267,3 +267,33 @@ def test_returning():
         create_table(conn, tablename, columns)
         returned_id = Insert(conn, tablename, columns=columns, values=data).returning('id').scalar()
         assert returned_id == 1
+
+
+def test_add_values():
+    tablename = 'table1'
+    columns = {
+        'id': 'int',
+        'name': 'text',
+    }
+    data = [
+        [1, 'Daniel'],
+        [2, 'Daniela']
+    ]
+    with open_test_connection() as conn:
+        create_table(conn, tablename, columns)
+        cmd = (
+            Insert(conn)
+            .table(tablename)
+            .columns(columns.keys())
+        )
+        for row in data:
+            cmd = cmd.add_values(row)
+        cmd.execute()
+
+        cursor = conn.cursor()
+        cursor.execute(f'SELECT * FROM {tablename}')
+        actual_rows = cursor.fetchall()
+        expected_rows = [tuple(r) for r in data]
+        assert len(actual_rows) == len(expected_rows)
+        for actual_row, expected_row in zip(actual_rows, expected_rows):
+            assert tuple(actual_row) == expected_row
