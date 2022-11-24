@@ -100,7 +100,7 @@ Query(conn)
     ...
     .and_where('price > 10')         # "price" > 10       <- Quoting in on by default
     .and_where('(no_quoting) > 10')  # (no_quoting) > 10  <- Quoting turned off manually
-    .and_where('sum("price") > 10')  # sum(price) > 10    <- You should do quoting here manually!
+    .and_where('sum("price") > 10')  # sum("price") > 10  <- You should do quoting here manually!
     ...
 ```
 
@@ -414,12 +414,11 @@ conn = psycopg2.connect(
 
   * **Dict-like fetched data**
 
-    With `Connection` class method `.all()` returns data rows as type of `DBRow`.
+    With `Connection` class method `.all()` returns data rows has type `DBRow`.
     The `DBRow` implements a few more ways to access the resulting data. Example:
     ```python
     cmd = Query(conn).select('id, name').from_('users')
     for row in cmd:
-        # assert isinstance(row, DBRow)
         # row is a tuple-like object
         id, name = row
         # row is a dict-like object
