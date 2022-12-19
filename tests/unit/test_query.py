@@ -642,3 +642,18 @@ def test_nested_params():
         )
         expected = 'Boris'
         assert actual == expected
+
+
+def test_nested_subquery_as_value():
+    with open_test_connection() as conn:
+        name = 'Jane'
+        q = Query(conn) \
+            .select('id') \
+            .from_('table1') \
+            .and_where({
+                'region': Query(conn).select('id2').from_('table2').and_where({'name': name})
+            })
+        assert_query(
+            q, 'SELECT "id" FROM "table1" WHERE ("region" = (SELECT "id2" FROM "table2" WHERE ("name" = %(p0_0)s)))',
+            {'p0_0': 'Jane'}
+        )
