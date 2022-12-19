@@ -12,7 +12,7 @@ jobs:
       - name: Install the package and its dependencies
         run: python3 -m pip install .
       - name: Installing the linter tool
-        run: python3 -m pip install pylint
+        run: python3 -m pip install pylint psycopg2
       - name: Execute the linting
         run: |
           cd ${{ github.workspace }}
