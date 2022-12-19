@@ -460,7 +460,7 @@ class WhereBehaviour:
         value = cond.value
         if isinstance(value, BaseCommand):
             built_cmd = self._o.build_subquery(value, ctx)
-            placeholder = sql.SQL('(') + built_cmd.as_string() + sql.SQL(')')
+            placeholder = sql.SQL('(' + built_cmd.as_string() + ')')
         elif cond.op in ['=', '<>', '!='] and isinstance(value, Iterable)\
                 and not isinstance(value, str):
             in_op = WHERE_OP_IN if cond.op == '=' else WHERE_OP_NOT_IN
