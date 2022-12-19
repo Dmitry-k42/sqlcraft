@@ -614,3 +614,31 @@ def test_where_in():
             q, 'SELECT * FROM "t1" WHERE "t1"."id" NOT IN %(p0)s',
             {'p0': (1, 2, 3)}
         )
+
+
+def test_nested_params():
+    tablename = 'table1'
+    columns = {
+        'id': 'int',
+        'name': 'text',
+        'active': 'bool',
+    }
+    data = [
+        (1, 'Boris', True),
+        (2, 'Ali', False),
+        (3, 'Paul', None),
+    ]
+    with open_test_connection() as conn:
+        create_table(conn, tablename, columns)
+        insert_rows(conn, tablename, columns, data)
+        actual = (
+            Query(conn)
+            .select(Query(conn)
+                    .select('name')
+                    .from_(tablename)
+                    .and_where({'id': 1})
+                    )
+            .scalar()
+        )
+        expected = 'Boris'
+        assert actual == expected

@@ -236,10 +236,10 @@ class BaseCommand:
         """
         return self._user_params.copy()
 
-    def build_subquery(self, subquery, ctx):
+    def build_subquery(self, subquery: "BaseCommand", ctx: BuildContext):
         """Build a subquery regard to the current build context."""
         res = subquery.build_query(param_name_prefix='p{}_'.format(ctx.subqueries_built))
-        for k, v in subquery.get_params().items():
+        for k, v in res.params.items():
             ctx.params[k] = v
         ctx.subqueries_built += 1
         return res
