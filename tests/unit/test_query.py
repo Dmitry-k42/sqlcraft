@@ -657,3 +657,42 @@ def test_nested_subquery_as_value():
             q, 'SELECT "id" FROM "table1" WHERE ("region" = (SELECT "id2" FROM "table2" WHERE ("name" = %(p0_0)s)))',
             {'p0_0': 'Jane'}
         )
+
+
+def test_limit_offset():
+    with open_test_connection() as conn:
+        def new_q():
+            return Query(conn) \
+                .select('id') \
+                .from_('table1')
+        assert_query(new_q(), 'SELECT "id" FROM "table1"', {})
+        assert_query(
+            new_q().limit(15),
+            'SELECT "id" FROM "table1" LIMIT 15',
+            {}
+        )
+        assert_query(
+            new_q().offset(100),
+            'SELECT "id" FROM "table1" OFFSET 100',
+            {}
+        )
+        assert_query(
+            new_q().offset(100).limit(2),
+            'SELECT "id" FROM "table1" LIMIT 2 OFFSET 100',
+            {}
+        )
+        assert_query(
+            new_q().limit(2).offset(100),
+            'SELECT "id" FROM "table1" LIMIT 2 OFFSET 100',
+            {}
+        )
+        assert_query(
+            new_q().limit(3).limit(None),
+            'SELECT "id" FROM "table1"',
+            {}
+        )
+        assert_query(
+            new_q().offset(3).offset(None),
+            'SELECT "id" FROM "table1"',
+            {}
+        )

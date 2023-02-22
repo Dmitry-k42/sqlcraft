@@ -29,6 +29,7 @@ class Query(BaseCommand, WhereBehaviour, WithBehaviour, FromBehaviour):
         self._group = []
         self._order = []
         self._limit = None
+        self._offset = None
 
     def distinct(self, _distinct=True):
         """
@@ -241,6 +242,17 @@ class Query(BaseCommand, WhereBehaviour, WithBehaviour, FromBehaviour):
         self._limit = limit
         return self
 
+    def offset(self, offset: int):
+        """
+        Sets OFFSET query block
+        Usage example:
+        * offset(32) => OFFSET 32
+        :param offset: integer representing the offset of the query result
+        :return: self
+        """
+        self._offset = offset
+        return self
+
     def _on_build_query(self, ctx):
         parts = [
             self._build_query_with(ctx),
@@ -251,6 +263,7 @@ class Query(BaseCommand, WhereBehaviour, WithBehaviour, FromBehaviour):
             self._build_query_group(ctx),
             self._build_query_order(ctx),
             self._build_query_limit(),
+            self._build_query_offset(),
         ]
         res = sql.SQL(' ').join([p for p in parts if p is not None])
         return res
@@ -306,6 +319,9 @@ class Query(BaseCommand, WhereBehaviour, WithBehaviour, FromBehaviour):
 
     def _build_query_limit(self):
         return sql.SQL('LIMIT {}').format(sql.Literal(self._limit)) if self._limit else None
+
+    def _build_query_offset(self):
+        return sql.SQL('OFFSET {}').format(sql.Literal(self._offset)) if self._offset else None
 
 
 Select = Query
